@@ -1,0 +1,101 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sage_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sage_db}
+      POSTGRES_USER: ${POSTGRES_USER:-sage_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sage_secure_pass_dev_only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - sage_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sage_user} -d ${POSTGRES_DB:-sage_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - sage_network
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: sage_backend
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-sage_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-sage_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-sage_secure_pass_dev_only}
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_key_minimum_32_characters_long_for_security_testing}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev_internal_service_secret_token_12345}
+      AUTOMATION_SERVICE_URL: http://automation:8000
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - sage_network
+
+  automation:
+    build:
+      context: ../automation
+      dockerfile: Dockerfile
+    container_name: sage_automation
+    restart: unless-stopped
+    environment:
+      AUTOMATION_PORT: 8000
+      AUTOMATION_HOST: 0.0.0.0
+      BACKEND_SERVICE_URL: http://backend:8080
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev_internal_service_secret_token_12345}
+    ports:
+      - "${AUTOMATION_PORT:-8000}:8000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - sage_network
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: sage_frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: http://backend:8080
+      VITE_AUTOMATION_BASE_URL: http://automation:8000
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+      - automation
+    networks:
+      - sage_network
+
+volumes:
+  sage_pgdata:
+    driver: local
+
+networks:
+  sage_network:
+    driver: bridge

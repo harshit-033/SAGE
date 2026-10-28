@@ -1,0 +1,11 @@
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    root: INFO
+    org.aicte.sage: DEBUG
+    org.springframework.security: INFO

@@ -1,0 +1,60 @@
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: always
+    include-binding-errors: always
+
+spring:
+  application:
+    name: sage-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:sage_db}}
+    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:sage_user}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:sage_secure_pass_dev_only}}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+sage:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:sage_default_insecure_dev_jwt_secret_key_minimum_32_characters_for_hmac_sha256}
+      expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 hours
+    internal:
+      service-token: ${INTERNAL_SERVICE_TOKEN:sage_internal_service_secret_token_12345}
+  automation:
+    service-url: ${AUTOMATION_SERVICE_URL:http://localhost:8000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+# OpenAPI / Swagger Config
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
