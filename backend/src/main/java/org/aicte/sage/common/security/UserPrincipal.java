@@ -51,6 +51,10 @@ public class UserPrincipal implements UserDetails {
         return authorities.stream().anyMatch(a -> a.getAuthority().equals(checkRole));
     }
 
+    public boolean hasAuthority(String authority) {
+        return authorities.stream().anyMatch(a -> a.getAuthority().equals(authority));
+    }
+
     public boolean isAuthorizedForInstitution(UUID institutionId) {
         if (institutionId == null) {
             return false;

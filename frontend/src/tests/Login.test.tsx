@@ -14,14 +14,14 @@ describe('Login Screen', () => {
       </AuthProvider>
     )
 
-    expect(screen.getByText('SAGE AICTE Portal')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Account Email or Username/i)).toBeInTheDocument()
+    expect(screen.getByText(/SAGE Portal Login/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Official Email or Username/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Security Password/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Authenticate & Enter/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Sign In to Portal/i })).toBeInTheDocument()
 
     // Demo account presets
     expect(screen.getByText(/Central Admin/i)).toBeInTheDocument()
-    expect(screen.getByText(/Delhi Tech Officer/i)).toBeInTheDocument()
+    expect(screen.getByText(/Institution Officer/i)).toBeInTheDocument()
   })
 
   it('populates fields when a preset button is clicked', () => {
@@ -36,7 +36,7 @@ describe('Login Screen', () => {
     const adminPresetBtn = screen.getByText(/Central Admin/i)
     fireEvent.click(adminPresetBtn)
 
-    const usernameInput = screen.getByLabelText(/Account Email or Username/i) as HTMLInputElement
+    const usernameInput = screen.getByLabelText(/Official Email or Username/i) as HTMLInputElement
     const passwordInput = screen.getByLabelText(/Security Password/i) as HTMLInputElement
 
     expect(usernameInput.value).toBe('admin@aicte.gov.in')

@@ -12,33 +12,37 @@ The SAGE platform adheres to a **Zero-Trust, Multi-Tenant Isolation** architectu
 
 ## 2. Role-Based Access Control (RBAC) & Permission Matrix
 
-SAGE defines five system roles with clear separation of duties:
+SAGE supports 9 normalized statutory roles with granular separation of duties:
 
-| Role Code | Role Name | Scope | Key Permissions |
-|-----------|-----------|-------|-----------------|
-| `ROLE_AICTE_ADMIN` | AICTE Central Administrator | Global | System administration, role assignment, policy configuration, complete audit log inspection. |
-| `ROLE_REGIONAL_OFFICER` | AICTE Regional Officer | Regional / Multi-Institution | Application review, regional institution oversight, scrutiny committee dispatch. |
-| `ROLE_SCRUTINY_OFFICER` | Scrutiny Officer / Expert | Assigned Application | Scrutiny checklist evaluation, deficiency logging, verification of institutional claims. |
-| `ROLE_EVC_MEMBER` | Expert Visit Committee Member | Assigned Visit | Physical/virtual inspection checklist submission, geo-tagged photo verification. |
-| `ROLE_INSTITUTION_OFFICER` | Institution Authorized Signatory | Scoped to Specific Institution(s) | Institution profile submission, document upload, compliance self-disclosure, fee acknowledgement. |
+| Role Code | Role Name | Tenancy Scope | Key Permissions |
+|---|---|---|---|
+| `ROLE_AICTE_ADMIN` | AICTE Central Administrator | Global | `USER_READ`, `USER_WRITE`, `USER_ACTIVATE`, `ROLE_ASSIGN`, `INSTITUTION_ACTIVATE`, `AUDIT_EXPORT`, `INSTITUTION_WRITE`, `INSTITUTION_READ`, `WORKFLOW_TRANSITION` |
+| `ROLE_REGIONAL_OFFICER` | AICTE Regional Officer | Regional Jurisdiction | `INSTITUTION_READ`, `USER_READ`, `WORKFLOW_TRANSITION`, `APPLICATION_READ` |
+| `ROLE_SCRUTINY_OFFICER` | Scrutiny Officer / Expert | Assigned Application | `INSTITUTION_READ`, `APPLICATION_READ`, `SCRUTINY_EVALUATE` |
+| `ROLE_EVC_COORDINATOR` | EVC Coordinator | Inspection Panels | `INSTITUTION_READ`, `EVC_MANAGE`, `APPLICATION_READ` |
+| `ROLE_EVC_MEMBER` | Expert Visit Committee Member | Assigned Visit | `INSTITUTION_READ`, `APPLICATION_READ` |
+| `ROLE_COMMITTEE_MEMBER` | Standing Appellate Committee | Hearing / Appeals | `INSTITUTION_READ`, `APPLICATION_READ`, `WORKFLOW_TRANSITION` |
+| `ROLE_COMPLIANCE_OFFICER` | Compliance Officer | Continuous Monitoring | `INSTITUTION_READ`, `COMPLIANCE_VERIFY`, `APPLICATION_READ` |
+| `ROLE_AUDITOR` | Regulatory Reviewer / Auditor | Read-Only Regulatory Scope | `INSTITUTION_READ`, `AUDIT_READ`, `AUDIT_EXPORT` |
+| `ROLE_INSTITUTION_OFFICER` | Institution Authorized Signatory | Scoped to Specific Institution(s) | `INSTITUTION_READ`, `INSTITUTION_WRITE` (own institution only), `APPLICATION_SUBMIT`, `APPLICATION_READ` |
 
 ---
 
 ## 3. Resource-Level Tenancy Authorization (Cross-Institution Protection)
 
 ### The Problem
-Traditional RBAC checks whether a user has `ROLE_INSTITUTION_OFFICER`. However, an institution officer from "College A" must be prevented from reading applications or compliance reports belonging to "College B" (Broken Object Level Authorization - BOLA / IDOR).
+Traditional RBAC checks whether a user has `ROLE_INSTITUTION_OFFICER`. However, an institution officer from "College A" must be prevented from reading applications or modifying profiles belonging to "College B" (Broken Object Level Authorization - BOLA / IDOR).
 
-### SAGE Solution: Two-Layer Authorization
-1. **Layer 1: URL/Method Role Check**:
-   Spring Security checks `@PreAuthorize("hasAnyRole('AICTE_ADMIN', 'REGIONAL_OFFICER', 'INSTITUTION_OFFICER')")`.
+### SAGE Solution: Multi-Layer Authorization
+1. **Layer 1: Method-Level Security**:
+   Spring Security checks `@PreAuthorize("@tenancyEvaluator.canUpdateInstitution(authentication, #id)")` or `@tenancyEvaluator.hasAccessToInstitution(authentication, #id)`.
 2. **Layer 2: Domain-Level Tenancy Evaluator**:
    `TenancyAuthorizationEvaluator` inspects the target resource's `institution_id`.
-   - If the caller has `ROLE_AICTE_ADMIN`, access is granted globally.
-   - If the caller has `ROLE_INSTITUTION_OFFICER`, the evaluator queries `institution_users` table to verify active membership between `user_id` and `target_institution_id`.
+   - If the caller has `ROLE_AICTE_ADMIN` or global regulatory review roles, access is granted.
+   - If the caller is an institutional user, the evaluator queries `institution_users` table to verify active membership between `user_id` and `target_institution_id`, AND verifies the required capability (e.g. `INSTITUTION_WRITE` for profile updates).
    - If no valid active link exists, a `TenantIsolationException` is thrown:
      - Returns HTTP `403 Forbidden` with a standardized Problem Details payload.
-     - Automatically emits an `AUDIT_SECURITY_VIOLATION` event to the `audit_events` table recording the caller identity, client IP, target institution ID, and correlation ID.
+     - Automatically emits a `TENANCY_VIOLATION_ATTEMPT` event to the `audit_events` table recording the caller identity, client IP, target institution ID, action, and correlation ID.
 
 ---
 
@@ -63,17 +67,17 @@ sequenceDiagram
 ```
 
 ### Password Hashing
-- Algorithm: **BCrypt** with configurable salt rounds (default: `12` rounds in production, `10` in local testing for speed).
+- Algorithm: **BCrypt** with 10–12 salt rounds (`$2a$10$`).
 - No plaintext passwords are ever persisted or logged.
 
 ### JWT Security Specs
-- Signature Algorithm: **HMAC-SHA256** (`HS256`) or `RS256` for external IdP.
-- Token Lifetime: Configurable (default: 8 hours).
+- Signature Algorithm: **HMAC-SHA256** (`HS256`).
+- Token Lifetime: 24 hours (configurable).
 - Payload claims:
   - `sub`: User ID (UUID)
   - `username`: Account identifier
   - `roles`: Set of assigned authority strings (`["ROLE_INSTITUTION_OFFICER"]`)
-  - `institutions`: Set of authorized Institution IDs (`["inst-uuid-1"]`)
+  - `institutions`: Set of authorized Institution IDs (`["22222222-2222-2222-2222-222222222222"]`)
   - `jti`: Unique token identifier for replay prevention.
 
 ---
@@ -91,9 +95,9 @@ Human identities are strictly segregated from automated service accounts:
 
 Every consequential regulatory action produces an immutable row in the `audit_events` table:
 - **Event Types**:
-  - `AUTH_LOGIN_SUCCESS`, `AUTH_LOGIN_FAILURE`
+  - `AUTH_LOGIN_SUCCESS`, `AUTH_LOGIN_FAILURE`, `AUTH_LOGOUT`
   - `TENANCY_VIOLATION_ATTEMPT`
-  - `INSTITUTION_CREATED`, `INSTITUTION_UPDATED`
-  - `DOCUMENT_UPLOADED`, `DOCUMENT_VERIFIED`
-  - `SCRUTINY_DECISION_RECORDED`
-- **Fields Captured**: `id`, `event_type`, `principal`, `institution_id`, `resource_type`, `resource_id`, `action`, `client_ip`, `correlation_id`, `details` (JSONB), and `created_at`.
+  - `INSTITUTION_CREATED`, `INSTITUTION_UPDATED`, `INSTITUTION_STATUS_CHANGED`
+  - `INSTITUTION_USER_AFFILIATED`, `INSTITUTION_USER_REMOVED`
+  - `USER_CREATED`, `USER_UPDATED`, `USER_STATUS_CHANGED`, `ROLE_ASSIGNED`
+- **Fields Captured**: `id`, `event_type`, `principal`, `institution_id`, `resource_type`, `resource_id`, `action`, `client_ip`, `correlation_id`, `details`, and `created_at`.

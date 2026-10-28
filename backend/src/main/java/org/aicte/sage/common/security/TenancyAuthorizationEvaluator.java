@@ -2,6 +2,7 @@ package org.aicte.sage.common.security;
 
 import org.aicte.sage.common.audit.AuditService;
 import org.aicte.sage.common.exception.TenantIsolationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
@@ -26,8 +27,10 @@ public class TenancyAuthorizationEvaluator {
             return false;
         }
 
-        // Global administrators have cross-institution regulatory access
-        if (principal.hasRole("ROLE_AICTE_ADMIN")) {
+        // Global administrators and regional officers have cross-institution regulatory access
+        if (principal.hasRole("ROLE_AICTE_ADMIN") || principal.hasRole("ROLE_REGIONAL_OFFICER")
+                || principal.hasRole("ROLE_AUDITOR") || principal.hasRole("ROLE_SCRUTINY_OFFICER")
+                || principal.hasRole("ROLE_EVC_COORDINATOR") || principal.hasRole("ROLE_COMPLIANCE_OFFICER")) {
             return true;
         }
 
@@ -47,6 +50,39 @@ public class TenancyAuthorizationEvaluator {
         }
 
         return true;
+    }
+
+    public boolean canUpdateInstitution(Authentication authentication, UUID institutionId) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+
+        Object principalObj = authentication.getPrincipal();
+        if (!(principalObj instanceof UserPrincipal principal)) {
+            return false;
+        }
+
+        // Global administrators can update any institution profile
+        if (principal.hasRole("ROLE_AICTE_ADMIN")) {
+            return true;
+        }
+
+        // Institution officer must belong to this institution AND possess INSTITUTION_WRITE authority
+        if (principal.isAuthorizedForInstitution(institutionId) && principal.hasAuthority("INSTITUTION_WRITE")) {
+            return true;
+        }
+
+        auditService.recordEvent(
+                "TENANCY_VIOLATION_ATTEMPT",
+                principal.getUsername(),
+                institutionId,
+                "INSTITUTION",
+                institutionId != null ? institutionId.toString() : "UNKNOWN",
+                "UNAUTHORIZED_UPDATE",
+                null,
+                "Principal lacks authority or institutional affiliation to modify institution"
+        );
+        throw new TenantIsolationException(institutionId, principal.getUsername());
     }
 
     public boolean hasAccessToInstitution(Authentication authentication, String institutionIdStr) {

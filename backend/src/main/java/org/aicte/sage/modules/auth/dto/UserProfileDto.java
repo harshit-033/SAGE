@@ -1,5 +1,6 @@
 package org.aicte.sage.modules.auth.dto;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -8,8 +9,9 @@ public class UserProfileDto {
     private String username;
     private String email;
     private String fullName;
-    private List<String> roles;
-    private List<UUID> institutions;
+    private List<String> roles = new ArrayList<>();
+    private List<String> permissions = new ArrayList<>();
+    private List<UUID> institutions = new ArrayList<>();
 
     public UserProfileDto() {}
 
@@ -19,8 +21,19 @@ public class UserProfileDto {
         this.username = username;
         this.email = email;
         this.fullName = fullName;
-        this.roles = roles;
-        this.institutions = institutions;
+        this.roles = roles != null ? roles : new ArrayList<>();
+        this.institutions = institutions != null ? institutions : new ArrayList<>();
+    }
+
+    public UserProfileDto(UUID id, String username, String email, String fullName,
+                          List<String> roles, List<String> permissions, List<UUID> institutions) {
+        this.id = id;
+        this.username = username;
+        this.email = email;
+        this.fullName = fullName;
+        this.roles = roles != null ? roles : new ArrayList<>();
+        this.permissions = permissions != null ? permissions : new ArrayList<>();
+        this.institutions = institutions != null ? institutions : new ArrayList<>();
     }
 
     public UUID getId() {
@@ -61,6 +74,14 @@ public class UserProfileDto {
 
     public void setRoles(List<String> roles) {
         this.roles = roles;
+    }
+
+    public List<String> getPermissions() {
+        return permissions;
+    }
+
+    public void setPermissions(List<String> permissions) {
+        this.permissions = permissions;
     }
 
     public List<UUID> getInstitutions() {

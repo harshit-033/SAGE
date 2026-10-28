@@ -20,7 +20,7 @@ describe('Navigation and Protected Routing', () => {
     )
 
     // Should redirect to Login page
-    expect(await screen.findByText('SAGE AICTE Portal')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Authenticate & Enter/i })).toBeInTheDocument()
+    expect(await screen.findByText(/SAGE Portal Login/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Sign In to Portal/i })).toBeInTheDocument()
   })
 })

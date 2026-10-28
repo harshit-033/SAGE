@@ -6,9 +6,12 @@ interface AuthContextType {
   token: string | null
   isLoading: boolean
   login: (username: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   hasRole: (role: string) => boolean
+  hasAnyRole: (roles: string[]) => boolean
+  hasPermission: (permission: string) => boolean
   isAdmin: boolean
+  isInstitutionOfficer: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -53,10 +56,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
-  const logout = () => {
-    localStorage.removeItem('sage_token')
-    setToken(null)
-    setUser(null)
+  const logout = async () => {
+    try {
+      await authApi.logout()
+    } finally {
+      localStorage.removeItem('sage_token')
+      setToken(null)
+      setUser(null)
+    }
   }
 
   const hasRole = (role: string) => {
@@ -65,7 +72,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return user.roles.includes(checkRole)
   }
 
+  const hasAnyRole = (roles: string[]) => {
+    if (!user) return false
+    return roles.some((r) => hasRole(r))
+  }
+
+  const hasPermission = (permission: string) => {
+    if (!user) return false
+    if (isAdmin) return true
+    return user.permissions?.includes(permission) ?? false
+  }
+
   const isAdmin = hasRole('ROLE_AICTE_ADMIN')
+  const isInstitutionOfficer = hasRole('ROLE_INSTITUTION_OFFICER')
 
   return (
     <AuthContext.Provider
@@ -76,7 +95,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         hasRole,
+        hasAnyRole,
+        hasPermission,
         isAdmin,
+        isInstitutionOfficer,
       }}
     >
       {children}

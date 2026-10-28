@@ -6,6 +6,9 @@ import { AppShell } from './components/layout/AppShell'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { Institutions } from './pages/Institutions'
+import { InstitutionProfile } from './pages/InstitutionProfile'
+import { UserManagement } from './pages/UserManagement'
+import { AuditLogViewer } from './pages/AuditLogViewer'
 import { SystemHealth } from './pages/SystemHealth'
 import { AccessDenied } from './pages/AccessDenied'
 import { NotFound } from './pages/NotFound'
@@ -19,8 +22,11 @@ const queryClient = new QueryClient({
   },
 })
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isLoading } = useAuth()
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode
+  requiredRole?: string
+}> = ({ children, requiredRole }) => {
+  const { user, isLoading, hasRole } = useAuth()
 
   if (isLoading) {
     return (
@@ -30,7 +36,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--bg-primary)',
+          backgroundColor: 'var(--bg-page)',
           color: 'var(--text-secondary)',
         }}
       >
@@ -41,6 +47,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   if (!user) {
     return <Navigate to="/login" replace />
+  }
+
+  if (requiredRole && !hasRole(requiredRole) && !hasRole('ROLE_AICTE_ADMIN')) {
+    return <Navigate to="/access-denied" replace />
   }
 
   return <>{children}</>
@@ -59,7 +69,28 @@ export const AppContent: React.FC = () => {
         }
       >
         <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/institutions" element={<Institutions />} />
+        <Route path="/institutions/:id" element={<InstitutionProfile />} />
+
+        {/* Administrative Only Routes */}
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute requiredRole="ROLE_AICTE_ADMIN">
+              <UserManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/audit"
+          element={
+            <ProtectedRoute requiredRole="ROLE_AUDITOR">
+              <AuditLogViewer />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/system-health" element={<SystemHealth />} />
         <Route path="/access-denied" element={<AccessDenied />} />
         <Route path="*" element={<NotFound />} />

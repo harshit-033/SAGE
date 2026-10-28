@@ -11,7 +11,7 @@ SAGE utilizes **PostgreSQL** as its single source of authoritative regulatory tr
 
 ---
 
-## 2. Phase 1 Entity Relationship Diagram
+## 2. Entity Relationship Diagram (Phase 2)
 
 ```mermaid
 erDiagram
@@ -28,7 +28,7 @@ erDiagram
 
     ROLES {
         UUID id PK
-        VARCHAR code UK "ROLE_AICTE_ADMIN, ROLE_INSTITUTION_OFFICER..."
+        VARCHAR code UK "ROLE_AICTE_ADMIN, ROLE_INSTITUTION_OFFICER, ROLE_SCRUTINY_OFFICER, ROLE_REGIONAL_OFFICER, ROLE_EVC_COORDINATOR, ROLE_EVC_MEMBER, ROLE_COMMITTEE_MEMBER, ROLE_COMPLIANCE_OFFICER, ROLE_AUDITOR"
         VARCHAR name
         VARCHAR description
         TIMESTAMPTZ created_at
@@ -36,7 +36,7 @@ erDiagram
 
     PERMISSIONS {
         UUID id PK
-        VARCHAR code UK "INSTITUTION_READ, INSTITUTION_WRITE..."
+        VARCHAR code UK "INSTITUTION_READ, INSTITUTION_WRITE, APPLICATION_SUBMIT, WORKFLOW_TRANSITION, EVC_MANAGE, COMPLIANCE_VERIFY, AUDIT_VIEW, USER_MANAGE, ROLE_MANAGE..."
         VARCHAR description
         TIMESTAMPTZ created_at
     }
@@ -63,9 +63,22 @@ erDiagram
         VARCHAR code UK "AICTE Permanent ID e.g. 1-12345678"
         VARCHAR name
         VARCHAR application_type "ENGINEERING_AND_TECH, PHARMACY, MANAGEMENT..."
+        VARCHAR category "GOVERNMENT, AIDED, PRIVATE_UNAIDED, CENTRAL_UNIVERSITY..."
+        VARCHAR address_line1
+        VARCHAR address_line2
+        VARCHAR city
         VARCHAR state
         VARCHAR district
+        VARCHAR pincode
+        VARCHAR official_email
+        VARCHAR official_phone
+        VARCHAR alternate_phone
+        VARCHAR website_url
+        INTEGER establishment_year
+        NUMERIC latitude
+        NUMERIC longitude
         VARCHAR status "ACTIVE, PENDING_APPROVAL, DEFICIENT, SUSPENDED"
+        BOOLEAN active
         BIGINT version
         TIMESTAMPTZ created_at
         TIMESTAMPTZ updated_at
@@ -75,7 +88,7 @@ erDiagram
         UUID id PK
         UUID institution_id FK
         UUID user_id FK
-        VARCHAR role_in_institution "HEAD_OF_INSTITUTION, REGISTRAR, LIAISON"
+        VARCHAR role_in_institution "HEAD_OF_INSTITUTION, REGISTRAR, LIAISON, FACULTY_ADMIN"
         BOOLEAN is_primary_contact
         TIMESTAMPTZ created_at
     }
@@ -97,18 +110,41 @@ erDiagram
 
 ---
 
-## 3. Data Dictionary (Phase 1 Baseline)
+## 3. Data Dictionary (Phase 2 Specification)
 
 ### Table: `institutions`
 - `id` (UUID, PK): Unique surrogate identifier.
 - `code` (VARCHAR(64), UNIQUE, NOT NULL): Official AICTE Permanent Institute ID (PID).
 - `name` (VARCHAR(255), NOT NULL): Legal institutional title.
 - `application_type` (VARCHAR(64), NOT NULL): Primary discipline approved by AICTE.
+- `category` (VARCHAR(64)): Institutional governance category (`GOVERNMENT`, `GOVERNMENT_AIDED`, `PRIVATE_SELF_FINANCED`, `CENTRAL_UNIVERSITY`, `STATE_UNIVERSITY`, `DEEMED_UNIVERSITY`).
+- `address_line1` (VARCHAR(255)): Street address / campus location line 1.
+- `address_line2` (VARCHAR(255)): Additional campus location details.
+- `city` (VARCHAR(100)): City / town location.
 - `state` (VARCHAR(100), NOT NULL): State / UT for regional jurisdiction routing.
 - `district` (VARCHAR(100), NOT NULL): District locator.
-- `status` (VARCHAR(32), NOT NULL): Lifecycle state (`ACTIVE`, `PENDING_SCRUTINY`, `EVC_SCHEDULED`, etc.).
+- `pincode` (VARCHAR(12)): Postal code.
+- `official_email` (VARCHAR(128)): Regulatory contact email.
+- `official_phone` (VARCHAR(32)): Landline / official phone number.
+- `alternate_phone` (VARCHAR(32)): Emergency or secondary contact number.
+- `website_url` (VARCHAR(255)): Official website URL.
+- `establishment_year` (INTEGER): Year institution was established.
+- `latitude` (NUMERIC(10, 7)): GIS coordinate latitude.
+- `longitude` (NUMERIC(10, 7)): GIS coordinate longitude.
+- `status` (VARCHAR(32), NOT NULL): Regulatory lifecycle state (`ACTIVE`, `PENDING_APPROVAL`, `DEFICIENT`, `SUSPENDED`).
+- `active` (BOOLEAN, NOT NULL, DEFAULT TRUE): Operational administrative status.
 - `version` (BIGINT, NOT NULL, DEFAULT 0): Optimistic locking version.
 - `created_at` / `updated_at` (TIMESTAMPTZ, NOT NULL): UTC audit timestamps.
+
+### Table: `users`
+- `id` (UUID, PK): Unique surrogate identifier.
+- `username` (VARCHAR(64), UNIQUE, NOT NULL): Login handle.
+- `email` (VARCHAR(128), UNIQUE, NOT NULL): Verified email address.
+- `password_hash` (VARCHAR(255), NOT NULL): BCrypt hash (`$2a$10$...`).
+- `full_name` (VARCHAR(128), NOT NULL): Human-readable name.
+- `active` (BOOLEAN, NOT NULL, DEFAULT TRUE): Administrative status flag.
+- `version` (BIGINT, NOT NULL, DEFAULT 0): Optimistic locking counter.
+- `created_at` / `updated_at` (TIMESTAMPTZ, NOT NULL): Timestamps.
 
 ### Table: `institution_users`
 - `id` (UUID, PK): Record ID.
@@ -121,12 +157,12 @@ erDiagram
 
 ### Table: `audit_events`
 - `id` (UUID, PK): Audit record UUID.
-- `event_type` (VARCHAR(64), NOT NULL): Categorized event code.
+- `event_type` (VARCHAR(64), NOT NULL): Categorized event code (`AUTH_LOGIN_SUCCESS`, `AUTH_LOGOUT`, `TENANCY_VIOLATION_ATTEMPT`, `INSTITUTION_UPDATE`, etc.).
 - `principal` (VARCHAR(128), NOT NULL): Username or service identifier executing the operation.
 - `institution_id` (UUID, NULL, FK -> `institutions.id`): Institution involved in the event.
-- `resource_type` (VARCHAR(64), NOT NULL): Target entity type (`INSTITUTION`, `APPLICATION`, etc.).
-- `resource_id` (VARCHAR(128), NOT NULL): Primary key of the affected target entity.
-- `action` (VARCHAR(32), NOT NULL): HTTP/Domain action (`CREATE`, `READ`, `UPDATE`, `DELETE`, `AUTH_CHECK`).
+- `resource_type` (VARCHAR(64), NOT NULL): Target entity type (`INSTITUTION`, `USER`, `AUTH`).
+- `resource_id` (VARCHAR(128), NOT NULL): Primary key or reference of affected entity.
+- `action` (VARCHAR(32), NOT NULL): Action (`CREATE`, `READ`, `UPDATE`, `DELETE`, `STATUS_CHANGE`, `SECURITY_BLOCK`).
 - `client_ip` (VARCHAR(64)): Remote IP address of the caller.
 - `correlation_id` (VARCHAR(64)): Distributed trace identifier (`X-Correlation-ID`).
 - `details` (JSONB): Structured contextual diff, payload summary, or failure reason.
@@ -135,16 +171,20 @@ erDiagram
   - `idx_audit_events_inst`: `(institution_id, created_at DESC)`
   - `idx_audit_events_principal`: `(principal, created_at DESC)`
   - `idx_audit_events_correlation`: `(correlation_id)`
+  - `idx_audit_events_created`: `(created_at DESC)`
 
 ---
 
 ## 4. Flyway Migration Versioning Rules
 
-Migrations are stored in `backend/src/main/resources/db/migration/`:
-- `V1__init_auth_and_institutions.sql`: Complete DDL schema creation with constraints and indexes.
-- `V2__dev_seed_data.sql`: Controlled non-production synthetic reference data. Only loaded in the `dev` profile.
+Migrations are stored in `backend/src/main/resources/db/migration/` (and profile seeds in `db/seed/`):
+- `V1__init_auth_and_institutions.sql`: Complete DDL baseline schema with constraints and indexes.
+- `V2__dev_seed_data.sql`: Phase 1 synthetic reference seed. Loaded only in `dev` and `test` environments.
+- `V3__phase2_institution_details_and_roles.sql`: Phase 2 DDL adding institutional profile fields, 4 statutory roles (`ROLE_EVC_COORDINATOR`, `ROLE_COMMITTEE_MEMBER`, `ROLE_COMPLIANCE_OFFICER`, `ROLE_AUDITOR`), granular permissions, and role-permission mappings.
+- `V4__phase2_seed_data.sql`: Phase 2 non-production demonstration data (enriching institutions with contact & GIS details, adding Pune and Chennai campuses, and demo user accounts for compliance, auditor, and EVC coordinator).
 
 **Non-Destructive Evolution Policy**:
 1. Never edit a migration file after it has run in any shared environment.
 2. Changes to existing structures must be implemented via additive `V{N+1}` migration scripts.
 3. No dropping of existing columns; deprecate columns first, then clean up in subsequent releases.
+4. Keep migrations portable (pure ANSI SQL) to ensure seamless execution on both PostgreSQL and H2 in-memory test databases.

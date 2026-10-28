@@ -6,6 +6,7 @@ export interface UserProfile {
   email: string
   fullName: string
   roles: string[]
+  permissions?: string[]
   institutions: string[]
 }
 
@@ -37,5 +38,15 @@ export const authApi = {
       method: 'GET',
     })
     return res.data
+  },
+
+  logout: async (): Promise<void> => {
+    try {
+      await apiClient<ApiResponseWrapper<void>>('/api/v1/auth/logout', {
+        method: 'POST',
+      })
+    } catch {
+      // Local session termination continues even if network dropped
+    }
   },
 }

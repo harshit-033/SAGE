@@ -24,8 +24,13 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
     case 'DEFICIENT':
     case 'DOWN':
     case 'REJECTED':
+    case 'SUSPENDED':
+    case 'INACTIVE':
       badgeClass = 'badge-danger'
-      label = status === 'DOWN' ? 'Offline' : 'Deficient'
+      if (status === 'DOWN') label = 'Offline'
+      else if (status === 'SUSPENDED') label = 'Suspended'
+      else if (status === 'INACTIVE') label = 'Inactive'
+      else label = 'Deficient'
       break
     case 'DEGRADED':
       badgeClass = 'badge-warning'
