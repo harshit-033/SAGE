@@ -55,7 +55,23 @@ All three services run seamlessly on local ports:
 - **Spring Boot Core Backend**: `http://localhost:8080` (API Docs: `/swagger-ui.html`)
 - **FastAPI Automation Service**: `http://localhost:8000` (API Docs: `/docs`)
 
-### A. Start All Services via Dev Script
+### A. Start Complete Platform (All Services)
+Run the all-in-one platform runner which starts the automation engine, core backend, and frontend together with automated dependency installation, health checks, and graceful shutdown on `Ctrl+C`:
+```bash
+./run.sh
+```
+
+### B. Start Core Backend Only
+Run the dedicated Spring Boot runner script:
+```bash
+# Standard dev runner on port 8080
+./backend/run.sh
+
+# Optional flags:
+./backend/run.sh --port 8081 --debug
+```
+
+### C. Individual Services (Dev Scripts)
 ```bash
 # Terminal 1: Core Backend
 ./scripts/dev.sh backend

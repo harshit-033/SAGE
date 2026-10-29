@@ -99,7 +99,14 @@ export const AppContent: React.FC = () => {
           }
         />
 
-        <Route path="/system-health" element={<SystemHealth />} />
+        <Route
+          path="/system-health"
+          element={
+            <ProtectedRoute requiredRole="ROLE_AICTE_ADMIN">
+              <SystemHealth />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/access-denied" element={<AccessDenied />} />
         <Route path="*" element={<NotFound />} />
       </Route>

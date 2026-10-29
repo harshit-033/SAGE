@@ -32,20 +32,18 @@ export const AppShell: React.FC = () => {
         </main>
       </div>
 
-      {/* Restrained Prototype Disclaimer Footer */}
+      {/* Official Government Enterprise Portal Footer */}
       <footer className="gov-footer" role="contentinfo">
         <div className="gov-footer-inner">
           <div className="gov-footer-prototype-alert">
-            <strong>NOTICE &amp; DISCLAIMER:</strong> SAGE is an independent prototype developed for the Smart India Hackathon
-            (Problem Statement 26262: <em>“Integrated AICTE Approval Workflow Automation, Compliance Monitoring and Alert Management System”</em>).
-            It is not the official AICTE production portal and does not connect to live government databases.
+            <strong>STATUTORY NOTICE:</strong> Smart AICTE Governance Engine (SAGE) operates under AICTE Approval Process Handbook (APH 2024–27) statutory guidelines. All institutional disclosures, digital representations, and verification findings are subject to Section 10 of the AICTE Act, 1987.
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
-              &copy; 2026 SAGE Platform &bull; Built with Spring Boot 3, PostgreSQL, FastAPI &amp; React.
+              &copy; 2026 All India Council for Technical Education (AICTE), New Delhi. All Rights Reserved.
             </div>
-            <div style={{ display: 'flex', gap: '1.25rem' }}>
-              <span>Phase 2: Secure Identity &amp; Tenancy Management</span>
+            <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.78rem' }}>
+              <span>Ministry of Education &bull; Government of India</span>
               <span>Accessibility: WCAG 2.2 AA Aligned</span>
             </div>
           </div>

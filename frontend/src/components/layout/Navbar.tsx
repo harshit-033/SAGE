@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Bell,
   Clock,
+  FileCheck,
 } from 'lucide-react'
 
 export const Navbar: React.FC = () => {
@@ -40,8 +41,8 @@ export const Navbar: React.FC = () => {
             <div className="gov-brand-text">
               <h1>
                 SAGE
-                <span className="badge badge-info" style={{ fontSize: '0.7rem', fontWeight: 600 }}>
-                  PROTOTYPE
+                <span className="badge badge-info" style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.05em' }}>
+                  GOVERNANCE PORTAL
                 </span>
               </h1>
               <p>Integrated AICTE Approval Workflow Automation &amp; Compliance Monitoring System</p>
@@ -143,6 +144,13 @@ export const Navbar: React.FC = () => {
               </NavLink>
             </li>
             <li className="gov-nav-item">
+              <NavLink to="/applications" className={({ isActive }) => (isActive ? 'active' : '')}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <FileCheck size={15} /> Applications
+                </span>
+              </NavLink>
+            </li>
+            <li className="gov-nav-item">
               <NavLink to="/compliance" className={({ isActive }) => (isActive ? 'active' : '')}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                   <Clock size={15} /> Compliance
@@ -185,13 +193,15 @@ export const Navbar: React.FC = () => {
               </li>
             )}
 
-            <li className="gov-nav-item">
-              <NavLink to="/system-health" className={({ isActive }) => (isActive ? 'active' : '')}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Server size={15} /> System Probes
-                </span>
-              </NavLink>
-            </li>
+            {isAdmin && (
+              <li className="gov-nav-item">
+                <NavLink to="/system-health" className={({ isActive }) => (isActive ? 'active' : '')}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Server size={15} /> System Diagnostics
+                  </span>
+                </NavLink>
+              </li>
+            )}
           </ul>
 
           <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>

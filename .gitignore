@@ -75,6 +75,7 @@ pnpm-debug.log*
 # Logs & DB Data
 *.log
 logs/
+.logs/
 pg_data/
 aicte_postgres_data/
 backend/data/

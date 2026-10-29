@@ -49,6 +49,7 @@ export const UserManagement: React.FC = () => {
   const [roleModalUser, setRoleModalUser] = useState<User | null>(null)
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
   const [updatingRoles, setUpdatingRoles] = useState(false)
+  const [roleError, setRoleError] = useState<string | null>(null)
 
   // Status Modal State
   const [statusModalUser, setStatusModalUser] = useState<User | null>(null)
@@ -129,6 +130,7 @@ export const UserManagement: React.FC = () => {
   }
 
   const openRoleModal = (u: User) => {
+    setRoleError(null)
     setRoleModalUser(u)
     setSelectedRoles([...u.roles])
   }
@@ -172,9 +174,10 @@ export const UserManagement: React.FC = () => {
   }
 
   const toggleRoleSelection = (roleCode: string) => {
+    setRoleError(null)
     if (selectedRoles.includes(roleCode)) {
       if (selectedRoles.length === 1) {
-        alert('User must have at least one role assigned.')
+        setRoleError('Statutory compliance requires each active user to have at least one authorized role assigned.')
         return
       }
       setSelectedRoles(selectedRoles.filter((r) => r !== roleCode))
@@ -542,6 +545,23 @@ export const UserManagement: React.FC = () => {
           }
         >
           <form id="assign-roles-form" onSubmit={handleAssignRoles}>
+            {roleError && (
+              <div
+                style={{
+                  padding: '0.65rem 0.85rem',
+                  marginBottom: '1rem',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
+                  fontSize: '0.825rem',
+                  fontWeight: 600,
+                }}
+                role="alert"
+              >
+                {roleError}
+              </div>
+            )}
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
               Select the statutory regulatory roles assigned to <strong>@{roleModalUser.username}</strong>:
             </p>

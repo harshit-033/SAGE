@@ -16,6 +16,7 @@ import {
 import { alertsApi, type AlertDto, type AlertSeverity, type AlertStatus } from '../api/alertsApi'
 import { useAuth } from '../context/AuthContext'
 import { Modal } from '../components/common/Modal'
+import { ConfirmModal } from '../components/common/ConfirmModal'
 
 export const Alerts: React.FC = () => {
   const { isAdmin, hasRole } = useAuth()
@@ -36,6 +37,7 @@ export const Alerts: React.FC = () => {
   const [ackNotes, setAckNotes] = useState<string>('')
   const [resolveModalOpen, setResolveModalOpen] = useState<boolean>(false)
   const [resolveNotes, setResolveNotes] = useState<string>('')
+  const [alertToEscalate, setAlertToEscalate] = useState<AlertDto | null>(null)
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -104,16 +106,19 @@ export const Alerts: React.FC = () => {
     }
   }
 
-  const handleEscalate = async (alert: AlertDto) => {
-    if (!window.confirm(`Escalate alert "${alert.title}" to Regional HQ supervisory queue?`)) {
-      return
-    }
+  const handleEscalate = (alert: AlertDto) => {
+    setAlertToEscalate(alert)
+  }
+
+  const confirmEscalate = async () => {
+    if (!alertToEscalate) return
 
     try {
       setActionLoading(true)
       setErrorMsg(null)
-      await alertsApi.escalate(alert.id, 'ROLE_REGIONAL_OFFICER')
+      await alertsApi.escalate(alertToEscalate.id, 'ROLE_REGIONAL_OFFICER')
       setSuccessMsg(`Alert escalated to Regional HQ supervisory queue.`)
+      setAlertToEscalate(null)
       await fetchAlerts()
     } catch (err: unknown) {
       setErrorMsg((err as Error).message || 'Failed to escalate alert.')
@@ -868,6 +873,19 @@ export const Alerts: React.FC = () => {
           </div>
         </Modal>
       )}
+
+      <ConfirmModal
+        isOpen={!!alertToEscalate}
+        title="Supervisory Alert Escalation"
+        message={`Escalate alert "${alertToEscalate?.title}" to Regional HQ supervisory queue?`}
+        description="This will elevate priority and notify Regional Oversight Officers for immediate regulatory intervention under AICTE APH procedures."
+        confirmText="Escalate to Regional HQ"
+        cancelText="Cancel"
+        confirmVariant="warning"
+        isLoading={actionLoading}
+        onConfirm={confirmEscalate}
+        onCancel={() => setAlertToEscalate(null)}
+      />
     </div>
   )
 }

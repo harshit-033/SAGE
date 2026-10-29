@@ -4,18 +4,33 @@ import { useAuth } from '../../context/AuthContext'
 import {
   Building2,
   Users,
-  ShieldCheck,
   FileCheck,
   ShieldAlert,
   Server,
   LayoutDashboard,
-  CheckCircle2,
   Bell,
   Clock,
+  HelpCircle,
+  PhoneCall,
 } from 'lucide-react'
 
 export const Sidebar: React.FC = () => {
   const { isAdmin, hasRole } = useAuth()
+  const showAdminSection = isAdmin || hasRole('ROLE_AUDITOR')
+
+  const getNavLinkStyle = ({ isActive }: { isActive: boolean }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.65rem',
+    padding: '0.55rem 0.75rem',
+    borderRadius: 'var(--radius-sm)',
+    color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
+    backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
+    fontWeight: isActive ? 700 : 500,
+    fontSize: '0.85rem',
+    textDecoration: 'none',
+    transition: 'background-color 0.15s ease, color 0.15s ease',
+  })
 
   return (
     <aside
@@ -31,8 +46,8 @@ export const Sidebar: React.FC = () => {
       }}
       aria-label="Sidebar Navigation"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        {/* Navigation Category */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {/* Portal Modules Category */}
         <div>
           <div
             style={{
@@ -46,260 +61,100 @@ export const Sidebar: React.FC = () => {
           >
             Portal Modules
           </div>
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', marginTop: '0.35rem' }}>
-            <NavLink
-              to="/dashboard"
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.55rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
-                backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.85rem',
-                textDecoration: 'none',
-              })}
-            >
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.35rem' }}>
+            <NavLink to="/dashboard" style={getNavLinkStyle} id="sidebar-nav-dashboard">
               <LayoutDashboard size={16} />
               <span>Dashboard</span>
             </NavLink>
 
-            <NavLink
-              to="/applications"
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.55rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
-                backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.85rem',
-                textDecoration: 'none',
-              })}
-            >
+            <NavLink to="/applications" style={getNavLinkStyle} id="sidebar-nav-applications">
               <FileCheck size={16} />
-              <span>Applications &amp; OCR</span>
+              <span>Applications &amp; Scrutiny</span>
             </NavLink>
 
-            <NavLink
-              to="/compliance"
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.55rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
-                backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.85rem',
-                textDecoration: 'none',
-              })}
-            >
+            <NavLink to="/compliance" style={getNavLinkStyle} id="sidebar-nav-compliance">
               <Clock size={16} />
               <span>Compliance &amp; Deadlines</span>
             </NavLink>
 
-            <NavLink
-              to="/alerts"
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.55rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
-                backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.85rem',
-                textDecoration: 'none',
-              })}
-            >
+            <NavLink to="/alerts" style={getNavLinkStyle} id="sidebar-nav-alerts">
               <Bell size={16} />
-              <span>Alerts &amp; Notifications</span>
+              <span>Regulatory Alerts</span>
             </NavLink>
 
-            <NavLink
-              to="/institutions"
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.55rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
-                backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.85rem',
-                textDecoration: 'none',
-              })}
-            >
+            <NavLink to="/institutions" style={getNavLinkStyle} id="sidebar-nav-institutions">
               <Building2 size={16} />
-              <span>Institutions</span>
-            </NavLink>
-
-            {isAdmin && (
-              <NavLink
-                to="/admin/users"
-                style={({ isActive }) => ({
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  padding: '0.55rem 0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
-                  backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
-                  fontWeight: isActive ? 700 : 500,
-                  fontSize: '0.85rem',
-                  textDecoration: 'none',
-                })}
-              >
-                <Users size={16} />
-                <span>Users &amp; Roles</span>
-              </NavLink>
-            )}
-
-            {(isAdmin || hasRole('ROLE_AUDITOR')) && (
-              <NavLink
-                to="/admin/audit"
-                style={({ isActive }) => ({
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  padding: '0.55rem 0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
-                  backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
-                  fontWeight: isActive ? 700 : 500,
-                  fontSize: '0.85rem',
-                  textDecoration: 'none',
-                })}
-              >
-                <ShieldAlert size={16} />
-                <span>Regulatory Audit</span>
-              </NavLink>
-            )}
-
-            <NavLink
-              to="/system-health"
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.55rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
-                backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.85rem',
-                textDecoration: 'none',
-              })}
-            >
-              <Server size={16} />
-              <span>System Probes</span>
+              <span>Institutions Directory</span>
             </NavLink>
           </nav>
         </div>
 
-        {/* Regulatory Workflow Pipeline Status */}
-        <div>
-          <div
-            style={{
-              padding: '0.25rem 0.5rem',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              color: 'var(--text-muted)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
-            Statutory Phasing
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.35rem' }}>
+        {/* Administration Category - Strict RBAC Visibility */}
+        {showAdminSection && (
+          <div>
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.45rem 0.5rem',
-                fontSize: '0.78rem',
-                backgroundColor: 'var(--status-success-bg)',
-                color: 'var(--status-success-text)',
-                borderRadius: 'var(--radius-xs)',
-                border: '1px solid var(--status-success-border)',
-                fontWeight: 600,
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <CheckCircle2 size={13} /> Phase 1: Security
-              </span>
-              <span>VERIFIED</span>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.45rem 0.5rem',
-                fontSize: '0.78rem',
-                backgroundColor: 'var(--status-success-bg)',
-                color: 'var(--status-success-text)',
-                borderRadius: 'var(--radius-xs)',
-                border: '1px solid var(--status-success-border)',
-                fontWeight: 600,
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <ShieldCheck size={13} /> Phase 2: Tenancy
-              </span>
-              <span>VERIFIED</span>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.45rem 0.5rem',
-                fontSize: '0.78rem',
-                backgroundColor: 'var(--status-info-bg)',
-                color: 'var(--status-info-text)',
-                borderRadius: 'var(--radius-xs)',
-                border: '1px solid var(--status-info-border)',
+                padding: '0.25rem 0.5rem',
+                fontSize: '0.72rem',
                 fontWeight: 700,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <FileCheck size={13} /> Phase 3: Scrutiny &amp; OCR
-              </span>
-              <span>VERIFIED</span>
+              System Administration
             </div>
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.35rem' }}>
+              {isAdmin && (
+                <NavLink to="/admin/users" style={getNavLinkStyle} id="sidebar-nav-users">
+                  <Users size={16} />
+                  <span>Users &amp; Roles</span>
+                </NavLink>
+              )}
+
+              {(isAdmin || hasRole('ROLE_AUDITOR')) && (
+                <NavLink to="/admin/audit" style={getNavLinkStyle} id="sidebar-nav-audit">
+                  <ShieldAlert size={16} />
+                  <span>Regulatory Audit Trail</span>
+                </NavLink>
+              )}
+
+              {isAdmin && (
+                <NavLink to="/system-health" style={getNavLinkStyle} id="sidebar-nav-system-health">
+                  <Server size={16} />
+                  <span>System Diagnostics</span>
+                </NavLink>
+              )}
+            </nav>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Tenancy Guard Badge */}
+      {/* Official Government Support & Statutory Reference Footer */}
       <div
         style={{
-          padding: '0.75rem',
+          marginTop: '1.5rem',
+          padding: '0.85rem',
           backgroundColor: 'var(--bg-surface-secondary)',
           border: '1px solid var(--border-medium)',
           borderRadius: 'var(--radius-sm)',
           fontSize: '0.75rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--gov-navy)', fontWeight: 700, marginBottom: '0.2rem' }}>
-          <ShieldCheck size={14} color="var(--gov-green)" />
-          <span>Tenancy Boundaries Enforced</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--gov-navy)', fontWeight: 700, marginBottom: '0.35rem' }}>
+          <HelpCircle size={14} color="var(--gov-blue)" />
+          <span>Approval Bureau Helpdesk</span>
         </div>
-        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.35, fontSize: '0.72rem' }}>
-          Backend verifies multi-tenant isolation on all REST endpoints.
+        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.4, fontSize: '0.72rem', margin: '0 0 0.5rem 0' }}>
+          Statutory support for AICTE APH 2024–27 approvals and compliance queries.
         </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <PhoneCall size={12} color="var(--gov-green)" />
+            <span>Toll Free: 1800-11-2345</span>
+          </div>
+          <div>Mon–Fri 09:30 – 17:30 IST</div>
+        </div>
       </div>
     </aside>
   )

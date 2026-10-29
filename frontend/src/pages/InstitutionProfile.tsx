@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { Breadcrumbs } from '../components/common/Breadcrumbs'
 import { StatusBadge } from '../components/common/StatusBadge'
 import { Modal } from '../components/common/Modal'
+import { ConfirmModal } from '../components/common/ConfirmModal'
 import { Alert } from '../components/common/Alert'
 import {
   Building2,
@@ -59,6 +60,8 @@ export const InstitutionProfile: React.FC = () => {
   const [roleInInstitution, setRoleInInstitution] = useState('NODAL_OFFICER')
   const [isPrimaryContact, setIsPrimaryContact] = useState(false)
   const [affiliating, setAffiliating] = useState(false)
+  const [userToDisaffiliate, setUserToDisaffiliate] = useState<string | null>(null)
+  const [disaffiliating, setDisaffiliating] = useState(false)
 
   const loadData = useCallback(async () => {
     if (!id) return
@@ -147,18 +150,23 @@ export const InstitutionProfile: React.FC = () => {
     }
   }
 
-  const handleRemoveUser = async (userId: string) => {
-    if (!id) return
-    if (!window.confirm('Are you sure you want to disaffiliate this officer from the institution?')) {
-      return
-    }
+  const handleRemoveUser = (userId: string) => {
+    setUserToDisaffiliate(userId)
+  }
+
+  const confirmDisaffiliate = async () => {
+    if (!id || !userToDisaffiliate) return
     try {
-      await institutionsApi.removeInstitutionUser(id, userId)
+      setDisaffiliating(true)
+      await institutionsApi.removeInstitutionUser(id, userToDisaffiliate)
       setSuccessMsg('Officer disaffiliated successfully.')
+      setUserToDisaffiliate(null)
       await loadData()
     } catch (err: unknown) {
       const errorObj = err as { problem?: { detail?: string }; message?: string }
       setError(errorObj?.problem?.detail || errorObj?.message || 'Failed to disaffiliate user')
+    } finally {
+      setDisaffiliating(false)
     }
   }
 
@@ -819,6 +827,19 @@ export const InstitutionProfile: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={!!userToDisaffiliate}
+        title="Confirm Officer Disaffiliation"
+        message="Are you sure you want to disaffiliate this officer from the institution?"
+        description="This will revoke the officer's institutional permissions for this technical institution. The user account itself will remain active in the system."
+        confirmText="Disaffiliate Officer"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        isLoading={disaffiliating}
+        onConfirm={confirmDisaffiliate}
+        onCancel={() => setUserToDisaffiliate(null)}
+      />
     </div>
   )
 }
