@@ -9,8 +9,9 @@ import {
   Server,
   Lock,
   ArrowRight,
-  Database,
   CheckCircle2,
+  FileCheck,
+  Cpu,
 } from 'lucide-react'
 
 export const Dashboard: React.FC = () => {
@@ -56,10 +57,14 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <Link to="/institutions" className="btn btn-primary" id="dashboard-view-institutions">
+              <Link to="/applications" className="btn btn-primary" id="dashboard-view-applications" style={{ backgroundColor: 'var(--gov-orange)', color: '#ffffff' }}>
+                <FileCheck size={16} />
+                <span>Workflow &amp; OCR Engine</span>
+                <ArrowRight size={14} />
+              </Link>
+              <Link to="/institutions" className="btn btn-secondary" id="dashboard-view-institutions">
                 <Building2 size={16} />
                 <span>Institutions</span>
-                <ArrowRight size={14} />
               </Link>
               {isAdmin && (
                 <Link to="/admin/users" className="btn btn-secondary" id="dashboard-view-users">
@@ -80,6 +85,28 @@ export const Dashboard: React.FC = () => {
 
       {/* Security & Regulatory Scope Metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+        <div className="gov-card" style={{ borderTop: '3px solid var(--gov-orange)' }}>
+          <div className="gov-card-header">
+            <span className="gov-card-title">
+              <Cpu size={16} color="var(--gov-orange)" /> Approval Workflow &amp; OCR
+            </span>
+            <span className="badge badge-success">Indra OCR Active</span>
+          </div>
+          <div className="gov-card-body">
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
+              Statutory approval pipeline with deterministic APH scrutiny rules, document upload, and Indra OCR field extraction.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Link to="/applications" className="btn btn-primary btn-sm" style={{ backgroundColor: 'var(--gov-navy)' }}>
+                Open Applications &rarr;
+              </Link>
+              <Link to="/applications/bbbbbbbb-bbbb-bbbb-bbbb-000000000001" className="btn btn-secondary btn-sm">
+                View OCR Sample (Delhi Tech)
+              </Link>
+            </div>
+          </div>
+        </div>
+
         <div className="gov-card">
           <div className="gov-card-header">
             <span className="gov-card-title">
@@ -110,23 +137,6 @@ export const Dashboard: React.FC = () => {
             </p>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
               Enforced by Spring Security + PostgreSQL RLS-compatible models.
-            </div>
-          </div>
-        </div>
-
-        <div className="gov-card">
-          <div className="gov-card-header">
-            <span className="gov-card-title">
-              <Database size={16} /> Flyway Versioning
-            </span>
-            <span className="badge badge-success">V1 - V4 Applied</span>
-          </div>
-          <div className="gov-card-body">
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
-              Full database migration governance: initial auth schema, seed credentials, detailed institution profiles, and normalized roles.
-            </p>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              ANSI SQL compatible with PostgreSQL and H2 test harness.
             </div>
           </div>
         </div>

@@ -51,6 +51,9 @@ public class ScrutinyEngineService {
     private final AuthoritativeAuthorizationService authService;
     private final AuditService auditService;
 
+    @org.springframework.beans.factory.annotation.Value("${sage.scrutiny.ocr-confidence-threshold:0.70}")
+    private double ocrConfidenceThreshold = 0.70;
+
     public ScrutinyEngineService(
             ApplicationRepository applicationRepository,
             DocumentRepository documentRepository,
@@ -457,9 +460,10 @@ public class ScrutinyEngineService {
         ScrutinyRule rule = ruleRepository.findById("RULE_APH_CONFIDENCE_GATE").orElse(null);
         if (rule == null) return;
 
+        int thresholdPct = (int) Math.round(ocrConfidenceThreshold * 100);
         List<String> lowConfDocs = new ArrayList<>();
         for (Document d : documents) {
-            if (d.isUncertain() || (d.getOverallConfidence() != null && d.getOverallConfidence() < 0.70)) {
+            if (d.isUncertain() || (d.getOverallConfidence() != null && d.getOverallConfidence() < ocrConfidenceThreshold)) {
                 lowConfDocs.add(d.getOriginalFilename() + " (" + (d.getOverallConfidence() != null ? Math.round(d.getOverallConfidence() * 100) + "%" : "Uncertain") + ")");
             }
         }
@@ -472,12 +476,12 @@ public class ScrutinyEngineService {
         if (!lowConfDocs.isEmpty()) {
             f.setStatus(FindingStatus.UNCERTAIN_OCR);
             f.setDeficiencyType(DeficiencyType.LOW_CONFIDENCE_EXTRACTION);
-            f.setExplanation("Documents with OCR extraction confidence below 70% detected. Routed to Scrutiny Officer for human document verification.");
+            f.setExplanation("SAGE Governance Policy (Safeguarding Human Review per APH Clause 1.6): OCR extraction confidence fell below configured project threshold (" + thresholdPct + "%). Routed to Scrutiny Officer for human document verification.");
             f.setEvidenceText("Low confidence documents: " + lowConfDocs);
         } else {
             f.setStatus(FindingStatus.COMPLIANT);
-            f.setExplanation("All documents processed with high OCR confidence exceeding statutory threshold (70%).");
-            f.setEvidenceText("Confidence Score: > 70% across all pages");
+            f.setExplanation("All documents processed with OCR confidence exceeding project governance threshold (" + thresholdPct + "%).");
+            f.setEvidenceText("Confidence Score: > " + thresholdPct + "% across all pages");
         }
         findings.add(f);
     }
@@ -516,6 +520,17 @@ public class ScrutinyEngineService {
         if (!hasUnresolvedDeficiencies && finding.getApplication().getCurrentState() == ApplicationState.DEFICIENT) {
             finding.getApplication().setCurrentState(ApplicationState.SCRUTINY_PASSED);
             applicationRepository.save(finding.getApplication());
+
+            auditService.recordEvent(
+                    "WORKFLOW_STATE_TRANSITION",
+                    principal.getUsername(),
+                    finding.getApplication().getInstitution().getId(),
+                    "APPLICATION",
+                    finding.getApplication().getId().toString(),
+                    "DEFICIENT -> SCRUTINY_PASSED",
+                    null,
+                    "Application state transitioned from DEFICIENT to SCRUTINY_PASSED following resolution of all statutory findings by " + principal.getUsername()
+            );
         }
 
         // Audit Event

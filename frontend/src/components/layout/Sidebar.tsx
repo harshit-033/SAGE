@@ -80,7 +80,7 @@ export const Sidebar: React.FC = () => {
               })}
             >
               <FileCheck size={16} />
-              <span>Applications &amp; Scrutiny</span>
+              <span>Applications, OCR &amp; Workflow</span>
             </NavLink>
 
             <NavLink

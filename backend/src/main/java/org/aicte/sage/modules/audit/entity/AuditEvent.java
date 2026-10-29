@@ -62,7 +62,7 @@ public class AuditEvent {
         this.institutionId = institutionId;
         this.resourceType = resourceType;
         this.resourceId = resourceId;
-        this.action = action;
+        this.action = action != null && action.length() > 32 ? action.substring(0, 32) : action;
         this.clientIp = clientIp;
         this.correlationId = correlationId;
         this.details = details;

@@ -3,7 +3,7 @@
 > *“Integrated AICTE Approval Workflow Automation, Compliance Monitoring and Alert Management System.”*  
 > **Primary Regulatory Source**: AICTE Approval Process Handbook (APH) 2024–25 to 2026–27
 
-[![Build & Test Status](https://img.shields.io/badge/tests-89%2F89%20passing-brightgreen.svg)]()
+[![Build & Test Status](https://img.shields.io/badge/tests-99%2F99%20passing-brightgreen.svg)]()
 [![Backend](https://img.shields.io/badge/backend-Spring%20Boot%203.4%20%7C%20Java%2021-blue.svg)]()
 [![Automation](https://img.shields.io/badge/automation-FastAPI%20%7C%20Indra%20OCR%20%7C%20Python%203.14-teal.svg)]()
 [![Frontend](https://img.shields.io/badge/frontend-React%2019%20%7C%20TypeScript%20%7C%20Vite-purple.svg)]()

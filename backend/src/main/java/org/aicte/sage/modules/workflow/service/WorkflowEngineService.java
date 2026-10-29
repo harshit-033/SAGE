@@ -105,7 +105,7 @@ public class WorkflowEngineService {
                 application.getInstitution().getId(),
                 "APPLICATION",
                 application.getId().toString(),
-                fromState + " -> " + toState,
+                "STATE_TRANSITION",
                 null,
                 "State transition from " + fromState + " to " + toState + " executed by " + principal.getUsername() + ". Reason: " + transition.getReason()
         );
@@ -168,36 +168,60 @@ public class WorkflowEngineService {
 
             case EVC_CONDUCTED:
                 if (from == ApplicationState.EVC_SCHEDULED) {
-                    if (isAdmin || isRegionalOfficer || isEvcCoordinator || isCommitteeMember) return;
+                    // Must have explicit EVC appointment or be EVC coordinator or Admin
+                    boolean hasEvcAppointment = authService.hasStatutoryCommitteeAppointment(principal.getId(), "EVC");
+                    if (isAdmin || isEvcCoordinator || hasEvcAppointment) return;
+                    throw new AccessDeniedException("User " + principal.getUsername() + " does not hold a statutory EVC committee appointment");
                 }
                 break;
 
             case SHC_SCHEDULED:
             case SHC_REVIEW:
+                // SHC is conditional upon deficiencies or adverse EVC recommendations per APH Chapter I/II
                 if (from == ApplicationState.DEFICIENT || from == ApplicationState.EVC_CONDUCTED || from == ApplicationState.UNDER_SCRUTINY) {
-                    if (isAdmin || isRegionalOfficer || isCommitteeMember) return;
+                    if (to == ApplicationState.SHC_SCHEDULED) {
+                        if (isAdmin || isRegionalOfficer) return;
+                    }
+                    if (to == ApplicationState.SHC_REVIEW) {
+                        boolean hasShcAppointment = authService.hasStatutoryCommitteeAppointment(principal.getId(), "SHC")
+                                || authService.hasStatutoryCommitteeAppointment(principal.getId(), "SHC_SAC");
+                        if (isAdmin || hasShcAppointment) return;
+                        throw new AccessDeniedException("User " + principal.getUsername() + " does not hold a statutory Standing Hearing Committee (SHC) appointment");
+                    }
                 }
                 break;
 
             case SAC_REVIEW:
+                // SAC is a conditional appellate gate following SHC or formal rejection appeal
                 if (from == ApplicationState.SHC_REVIEW || from == ApplicationState.DEFICIENT) {
-                    if (isAdmin || isRegionalOfficer || isCommitteeMember) return;
+                    boolean hasSacAppointment = authService.hasStatutoryCommitteeAppointment(principal.getId(), "SAC")
+                            || authService.hasStatutoryCommitteeAppointment(principal.getId(), "SHC_SAC");
+                    if (isAdmin || hasSacAppointment) return;
+                    throw new AccessDeniedException("User " + principal.getUsername() + " does not hold a statutory Standing Appellate Committee (SAC) appointment");
                 }
                 break;
 
             case APPROVED:
-                if (from == ApplicationState.SCRUTINY_PASSED && !application.getWorkflowDefinition().isRequiresEvc() && !application.getWorkflowDefinition().isRequiresShc()) {
-                    // Straightforward EoA fast-track approval
+                if (from == ApplicationState.SCRUTINY_PASSED) {
+                    if (application.getWorkflowDefinition().isRequiresEvc()) {
+                        throw new AccessDeniedException("Application category '" + application.getCategory() + "' requires mandatory EVC inspection before approval per APH Chapter I");
+                    }
+                    if (application.getWorkflowDefinition().isRequiresShc()) {
+                        throw new AccessDeniedException("Application category '" + application.getCategory() + "' requires mandatory committee clearance before approval");
+                    }
+                    // Fast-track EoA approval rests with statutory Regional Officer / Admin
                     if (isAdmin || isRegionalOfficer) return;
                 }
-                if (from == ApplicationState.EVC_CONDUCTED || from == ApplicationState.SHC_REVIEW || from == ApplicationState.SAC_REVIEW || from == ApplicationState.SCRUTINY_PASSED) {
-                    if (isAdmin || isRegionalOfficer || isCommitteeMember) return;
+                if (from == ApplicationState.EVC_CONDUCTED || from == ApplicationState.SHC_REVIEW || from == ApplicationState.SAC_REVIEW) {
+                    // Final statutory approval decision rests with Regional Officer / Central Admin
+                    if (isAdmin || isRegionalOfficer) return;
                 }
                 break;
 
             case REJECTED:
+                // Statutory rejection rests with Regional Officer / Central Admin following due process
                 if (from == ApplicationState.SHC_REVIEW || from == ApplicationState.SAC_REVIEW || from == ApplicationState.DEFICIENT) {
-                    if (isAdmin || isRegionalOfficer || isCommitteeMember) return;
+                    if (isAdmin || isRegionalOfficer) return;
                 }
                 break;
 

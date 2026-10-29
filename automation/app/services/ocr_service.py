@@ -85,8 +85,53 @@ class IndraOcrAdapter(BaseOcrAdapter):
         return page_results, "INDRA_OCR"
 
 class TesseractOcrAdapter(BaseOcrAdapter):
-    def process_file(self, file_path: str) -> Tuple[List[Dict[str, Any]], str]:
+    def _process_image_with_tesseract(self, pil_image_or_cv2) -> Tuple[str, List[Dict[str, Any]]]:
         import pytesseract
+        data = pytesseract.image_to_data(pil_image_or_cv2, output_type=pytesseract.Output.DICT)
+
+        lines_dict: Dict[Tuple[int, int, int], Dict[str, Any]] = {}
+        for i in range(len(data["text"])):
+            w_text = data["text"][i].strip()
+            conf = float(data["conf"][i])
+            if conf < 0:
+                continue
+            if not w_text:
+                continue
+            key = (int(data["block_num"][i]), int(data["par_num"][i]), int(data["line_num"][i]))
+            if key not in lines_dict:
+                lines_dict[key] = {
+                    "words": [],
+                    "confs": [],
+                    "left": int(data["left"][i]),
+                    "top": int(data["top"][i]),
+                    "right": int(data["left"][i]) + int(data["width"][i]),
+                    "bottom": int(data["top"][i]) + int(data["height"][i])
+                }
+            lines_dict[key]["words"].append(w_text)
+            lines_dict[key]["confs"].append(conf / 100.0)
+            lines_dict[key]["right"] = max(lines_dict[key]["right"], int(data["left"][i]) + int(data["width"][i]))
+            lines_dict[key]["bottom"] = max(lines_dict[key]["bottom"], int(data["top"][i]) + int(data["height"][i]))
+            lines_dict[key]["left"] = min(lines_dict[key]["left"], int(data["left"][i]))
+            lines_dict[key]["top"] = min(lines_dict[key]["top"], int(data["top"][i]))
+
+        lines = []
+        full_text_lines = []
+        for key in sorted(lines_dict.keys()):
+            item = lines_dict[key]
+            line_str = " ".join(item["words"])
+            full_text_lines.append(line_str)
+            line_conf = round(sum(item["confs"]) / len(item["confs"]), 3) if item["confs"] else 0.0
+            box = [item["left"], item["top"], item["right"], item["bottom"]]
+            lines.append({
+                "text": line_str,
+                "box": box,
+                "conf": line_conf
+            })
+
+        text_result = "\n".join(full_text_lines)
+        return text_result, lines
+
+    def process_file(self, file_path: str) -> Tuple[List[Dict[str, Any]], str]:
         import pypdfium2
         import cv2
 
@@ -96,27 +141,27 @@ class TesseractOcrAdapter(BaseOcrAdapter):
             for p_idx in range(len(pdf)):
                 page = pdf[p_idx]
                 pil_image = page.render(scale=2).to_pil()
-                text = pytesseract.image_to_string(pil_image)
+                text, lines = self._process_image_with_tesseract(pil_image)
                 page_results.append({
                     "page_number": p_idx + 1,
                     "text": text,
                     "markdown": text,
                     "rotation": 0,
                     "skew": 0.0,
-                    "lines": [{"text": l, "box": None, "conf": 0.85} for l in text.splitlines() if l.strip()]
+                    "lines": lines
                 })
         else:
             img = cv2.imread(file_path)
             if img is None:
                 raise ValueError("Could not read image file")
-            text = pytesseract.image_to_string(img)
+            text, lines = self._process_image_with_tesseract(img)
             page_results.append({
                 "page_number": 1,
                 "text": text,
                 "markdown": text,
                 "rotation": 0,
                 "skew": 0.0,
-                "lines": [{"text": l, "box": None, "conf": 0.85} for l in text.splitlines() if l.strip()]
+                "lines": lines
             })
         return page_results, "TESSERACT_FALLBACK"
 
@@ -323,6 +368,95 @@ class DocumentIntelligenceEngine:
                         raw_text_snippet=text
                     )
                     break
+
+        # Meeting Date patterns (Board Resolution)
+        meeting_patterns = [
+            r"(?:Date\s+of\s+Meeting|Meeting\s+Date)[:\s]+(\d{1,4}[/\-\.]\d{1,2}[/\-\.]\d{2,4})"
+        ]
+        for p_num, line in all_lines:
+            text = line["text"]
+            for pat in meeting_patterns:
+                m = re.search(pat, text, re.IGNORECASE)
+                if m and "meeting_date" not in fields:
+                    raw_val = m.group(1).strip()
+                    fields["meeting_date"] = ExtractedField(
+                        field_key="meeting_date",
+                        extracted_value=raw_val,
+                        normalized_value=self._normalize_date(raw_val),
+                        confidence_score=line.get("conf", 1.0),
+                        source_page=p_num,
+                        bounding_box=line.get("box"),
+                        raw_text_snippet=text
+                    )
+                    break
+
+        # Multiline / wrapped text fallbacks across page text
+        if "certificate_number" not in fields:
+            m_cn = re.search(r"(?:Certificate\s+Number|Title\s+Deed\s+Number|Resolution\s+Number|Document\s+Number)[:\s]+([A-Za-z0-9\-_/]+)", full_text, re.IGNORECASE)
+            if m_cn:
+                val = m_cn.group(1).strip()
+                fields["certificate_number"] = ExtractedField(
+                    field_key="certificate_number",
+                    extracted_value=val,
+                    normalized_value=val,
+                    confidence_score=0.95,
+                    source_page=1,
+                    raw_text_snippet=m_cn.group(0)
+                )
+
+        if "issuing_authority" not in fields:
+            m_ia = re.search(r"(?:Issuing\s+Authority[:\s]+)([^.\n]+)", full_text, re.IGNORECASE)
+            if m_ia:
+                val = m_ia.group(1).strip()
+                fields["issuing_authority"] = ExtractedField(
+                    field_key="issuing_authority",
+                    extracted_value=val,
+                    normalized_value=val,
+                    confidence_score=0.95,
+                    source_page=1,
+                    raw_text_snippet=m_ia.group(0)
+                )
+
+        if "institution_name" not in fields:
+            m_in = re.search(r"(?:Institution\s+Name|Institution)[:\s]+([^.\n]+)", full_text, re.IGNORECASE)
+            if not m_in:
+                m_in = re.search(r"(?:Registered\s+in\s+favor\s+of[:\s]+)([\s\S]+?)\.\s*Registration", full_text, re.IGNORECASE)
+            if m_in:
+                val = " ".join(m_in.group(1).split()).strip()
+                fields["institution_name"] = ExtractedField(
+                    field_key="institution_name",
+                    extracted_value=val,
+                    normalized_value=val,
+                    confidence_score=0.95,
+                    source_page=1,
+                    raw_text_snippet=m_in.group(0)
+                )
+
+        if "land_area_acres" not in fields:
+            m_la = re.search(r"(\d+(?:\.\d+)?)\s*(?:Acres|Acre)", full_text, re.IGNORECASE)
+            if m_la:
+                val = m_la.group(1).strip()
+                fields["land_area_acres"] = ExtractedField(
+                    field_key="land_area_acres",
+                    extracted_value=val,
+                    normalized_value=val,
+                    confidence_score=0.95,
+                    source_page=1,
+                    raw_text_snippet=m_la.group(0)
+                )
+
+        if "meeting_date" not in fields:
+            m_md = re.search(r"(?:Date\s+of\s+Meeting|Meeting\s+Date)[:\s]+(\d{1,4}[/\-\.]\d{1,2}[/\-\.]\d{2,4})", full_text, re.IGNORECASE)
+            if m_md:
+                raw_val = m_md.group(1).strip()
+                fields["meeting_date"] = ExtractedField(
+                    field_key="meeting_date",
+                    extracted_value=raw_val,
+                    normalized_value=self._normalize_date(raw_val),
+                    confidence_score=0.95,
+                    source_page=1,
+                    raw_text_snippet=m_md.group(0)
+                )
 
         return fields
 

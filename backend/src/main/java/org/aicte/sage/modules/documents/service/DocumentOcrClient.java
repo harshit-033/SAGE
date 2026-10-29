@@ -18,11 +18,20 @@ public class DocumentOcrClient {
     private final RestClient restClient;
     private final String serviceToken;
 
+    private static final Set<String> KNOWN_INSECURE_DEFAULTS = Set.of(
+            "sage_internal_service_secret_token_12345",
+            "sage_internal_dev_service_secret_token_12345",
+            "test_internal_service_secret_token_12345",
+            "your_internal_service_shared_secret_token_placeholder"
+    );
+
     public DocumentOcrClient(
             @Value("${sage.automation.service-url:http://localhost:8000}") String automationServiceUrl,
-            @Value("${sage.security.internal.service-token:sage_internal_dev_service_secret_token_12345}") String serviceToken
+            @Value("${sage.security.internal.service-token:}") String serviceToken,
+            @Value("${spring.profiles.active:dev}") String activeProfiles
     ) {
-        this.serviceToken = serviceToken;
+        validateInternalServiceToken(serviceToken, activeProfiles);
+        this.serviceToken = serviceToken != null ? serviceToken.trim() : "";
         java.net.http.HttpClient httpClient = java.net.http.HttpClient.newBuilder()
                 .version(java.net.http.HttpClient.Version.HTTP_1_1)
                 .build();
@@ -30,6 +39,30 @@ public class DocumentOcrClient {
                 .requestFactory(new org.springframework.http.client.JdkClientHttpRequestFactory(httpClient))
                 .baseUrl(automationServiceUrl)
                 .build();
+    }
+
+    private void validateInternalServiceToken(String token, String activeProfiles) {
+        boolean isDevOrTest = activeProfiles != null &&
+                (activeProfiles.contains("dev") || activeProfiles.contains("test"));
+
+        if (!isDevOrTest) {
+            if (token == null || token.isBlank()) {
+                throw new IllegalStateException(
+                        "Production configuration rejected: sage.security.internal.service-token must be explicitly configured in production."
+                );
+            }
+            String trimmed = token.trim();
+            if (KNOWN_INSECURE_DEFAULTS.contains(trimmed)) {
+                throw new IllegalStateException(
+                        "Production configuration rejected: sage.security.internal.service-token cannot use known development defaults in production."
+                );
+            }
+            if (trimmed.length() < 32) {
+                throw new IllegalArgumentException(
+                        "Production configuration rejected: sage.security.internal.service-token must be at least 32 characters in production."
+                );
+            }
+        }
     }
 
     public record ExtractedFieldResponse(

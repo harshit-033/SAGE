@@ -14,6 +14,41 @@ BENCHMARK_FILE = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../../../../tests/benchmark/benchmark_results.json")
 )
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../"))
+ALLOWED_DIR_PREFIXES = [
+    os.path.realpath(os.path.join(PROJECT_ROOT, "backend/data/documents")),
+    os.path.realpath(os.path.join(PROJECT_ROOT, "automation/tests/benchmark/corpus")),
+    os.path.realpath(tempfile.gettempdir()),
+]
+
+def validate_and_resolve_document_path(raw_path: str) -> str:
+    if not raw_path or not raw_path.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File path cannot be blank"
+        )
+    resolved = os.path.realpath(raw_path)
+    is_allowed = any(
+        resolved == allowed_dir or resolved.startswith(allowed_dir + os.sep)
+        for allowed_dir in ALLOWED_DIR_PREFIXES
+    )
+    if not is_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: file path is outside authorized storage directories"
+        )
+    if not os.path.exists(resolved):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document file not found at: {raw_path}"
+        )
+    if not os.path.isfile(resolved):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Specified path is not a regular file"
+        )
+    return resolved
+
 class OcrPathRequest(BaseModel):
     file_path: str
     document_type: str = "GENERAL"
@@ -27,9 +62,11 @@ async def process_document_by_path(
     """
     Process a local stored document by path using Indra OCR with Tesseract fallback.
     Extracts structured fields, bounding boxes, reading order, confidence scores, and uncertainty.
+    Enforces path-traversal sandboxing restricting access to authorized document directories.
     """
+    safe_path = validate_and_resolve_document_path(payload.file_path)
     result = ocr_engine.process(
-        file_path=payload.file_path,
+        file_path=safe_path,
         document_type=payload.document_type,
         document_id=payload.document_id
     )

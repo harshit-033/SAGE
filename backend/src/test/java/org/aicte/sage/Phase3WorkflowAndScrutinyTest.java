@@ -270,4 +270,139 @@ public class Phase3WorkflowAndScrutinyTest {
                 .andExpect(jsonPath("$.data.resolved").value(true))
                 .andExpect(jsonPath("$.data.resolutionNotes", containsString("Verified original physical certificate")));
     }
+
+    @Test
+    @DisplayName("Statutory Gate: Application requiring EVC cannot transition SCRUTINY_PASSED -> APPROVED")
+    void testNewInstitutionCannotBypassEvcToApproved() throws Exception {
+        // Create a NEW_INSTITUTION application (requires mandatory EVC)
+        CreateApplicationRequest req = new CreateApplicationRequest(
+                UUID.fromString(DELHI_INST_ID),
+                "2024-25",
+                ApplicationCategory.NEW_INSTITUTION
+        );
+
+        MvcResult createResult = mockMvc.perform(post("/api/v1/applications")
+                        .header("Authorization", "Bearer " + delhiOfficerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String appId = objectMapper.readTree(createResult.getResponse().getContentAsString()).at("/data/id").asText();
+
+        // Submit application
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/submit")
+                        .header("Authorization", "Bearer " + delhiOfficerToken))
+                .andExpect(status().isOk());
+
+        // Regional Officer advances to UNDER_SCRUTINY then SCRUTINY_PASSED
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/transitions")
+                        .header("Authorization", "Bearer " + regionalToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new TransitionRequest(ApplicationState.UNDER_SCRUTINY, "Scrutiny started", null))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/transitions")
+                        .header("Authorization", "Bearer " + regionalToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new TransitionRequest(ApplicationState.SCRUTINY_PASSED, "Scrutiny completed", null))))
+                .andExpect(status().isOk());
+
+        // Regional Officer attempts illegal bypass: SCRUTINY_PASSED -> APPROVED without EVC
+        TransitionRequest bypassReq = new TransitionRequest(ApplicationState.APPROVED, "Attempted illegal EVC bypass", null);
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/transitions")
+                        .header("Authorization", "Bearer " + regionalToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bypassReq)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail", containsString("You do not possess the required regulatory role or permission")));
+    }
+
+    @Test
+    @DisplayName("Statutory Gate: Transition to EVC_CONDUCTED blocked without statutory EVC appointment")
+    void testEvcConductRequiresStatutoryCommitteeAppointment() throws Exception {
+        // Create fresh application for Delhi
+        CreateApplicationRequest req = new CreateApplicationRequest(
+                UUID.fromString(DELHI_INST_ID),
+                "2024-25",
+                ApplicationCategory.NEW_INSTITUTION
+        );
+
+        MvcResult createResult = mockMvc.perform(post("/api/v1/applications")
+                        .header("Authorization", "Bearer " + delhiOfficerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String appId = objectMapper.readTree(createResult.getResponse().getContentAsString()).at("/data/id").asText();
+
+        // Submit application
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/submit")
+                        .header("Authorization", "Bearer " + delhiOfficerToken))
+                .andExpect(status().isOk());
+
+        // Regional officer advances from SUBMITTED -> UNDER_SCRUTINY -> SCRUTINY_PASSED -> EVC_SCHEDULED
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/transitions")
+                        .header("Authorization", "Bearer " + regionalToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new TransitionRequest(ApplicationState.UNDER_SCRUTINY, "Scrutiny started", null))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/transitions")
+                        .header("Authorization", "Bearer " + regionalToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new TransitionRequest(ApplicationState.SCRUTINY_PASSED, "Scrutiny passed", null))))
+                .andExpect(status().isOk());
+
+        // Schedule EVC (by admin to allow scheduling)
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/transitions")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new TransitionRequest(ApplicationState.EVC_SCHEDULED, "EVC visit scheduled", null))))
+                .andExpect(status().isOk());
+
+        // Regional Officer (lacking statutory EVC appointment) attempts to conduct EVC -> Forbidden
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/transitions")
+                        .header("Authorization", "Bearer " + regionalToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new TransitionRequest(ApplicationState.EVC_CONDUCTED, "Attempted EVC conduction without appointment", null))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail", containsString("You do not possess the required regulatory role or permission")));
+    }
+
+    @Test
+    @DisplayName("Workflow Engine: Duplicate transition to identical state is rejected as invalid")
+    void testDuplicateStateTransitionRejected() throws Exception {
+        // Create fresh application for Delhi
+        CreateApplicationRequest req = new CreateApplicationRequest(
+                UUID.fromString(DELHI_INST_ID),
+                "2024-25",
+                ApplicationCategory.EXTENSION_OF_APPROVAL
+        );
+
+        MvcResult createResult = mockMvc.perform(post("/api/v1/applications")
+                        .header("Authorization", "Bearer " + delhiOfficerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String appId = objectMapper.readTree(createResult.getResponse().getContentAsString()).at("/data/id").asText();
+
+        // Submit application
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/submit")
+                        .header("Authorization", "Bearer " + delhiOfficerToken))
+                .andExpect(status().isOk());
+
+        // App is now in SUBMITTED state; attempt duplicate transition to SUBMITTED
+        TransitionRequest duplicateReq = new TransitionRequest(ApplicationState.SUBMITTED, "Duplicate submission attempt", null);
+
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/transitions")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(duplicateReq)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail", containsString("Application is already in state")));
+    }
 }

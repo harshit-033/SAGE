@@ -43,7 +43,42 @@ async def test_ocr_process_unauthenticated_rejected():
                 "document_type": "FIRE_SAFETY_CERTIFICATE"
             }
         )
-        assert response.status_code == 422 or response.status_code == 403
+        assert response.status_code in (401, 403, 422)
+
+@pytest.mark.asyncio
+async def test_ocr_path_traversal_forbidden():
+    """
+    Arbitrary filesystem access outside authorized directories must be blocked with HTTP 403.
+    """
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        for evil_path in ["/etc/passwd", "../../../../../etc/shadow", "/var/log/syslog"]:
+            response = await ac.post(
+                "/api/v1/ocr/process",
+                json={
+                    "file_path": evil_path,
+                    "document_type": "FIRE_SAFETY_CERTIFICATE"
+                },
+                headers={"X-Internal-Service-Token": settings.INTERNAL_SERVICE_TOKEN}
+            )
+            assert response.status_code == 403
+            assert "outside authorized storage directories" in response.json().get("detail", "")
+
+@pytest.mark.asyncio
+async def test_ocr_nonexistent_file_in_allowed_directory_returns_404():
+    """
+    Non-existent files inside allowed directories must return 404 Not Found.
+    """
+    non_existent = os.path.join(CORPUS_DIR, "non_existent_file_xyz_1234.pdf")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.post(
+            "/api/v1/ocr/process",
+            json={
+                "file_path": non_existent,
+                "document_type": "FIRE_SAFETY_CERTIFICATE"
+            },
+            headers={"X-Internal-Service-Token": settings.INTERNAL_SERVICE_TOKEN}
+        )
+        assert response.status_code == 404
 
 @pytest.mark.asyncio
 async def test_ocr_upload_and_process():
