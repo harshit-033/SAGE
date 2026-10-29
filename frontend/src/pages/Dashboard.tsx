@@ -12,6 +12,8 @@ import {
   CheckCircle2,
   FileCheck,
   Cpu,
+  Bell,
+  Clock,
 } from 'lucide-react'
 
 export const Dashboard: React.FC = () => {
@@ -59,8 +61,16 @@ export const Dashboard: React.FC = () => {
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <Link to="/applications" className="btn btn-primary" id="dashboard-view-applications" style={{ backgroundColor: 'var(--gov-orange)', color: '#ffffff' }}>
                 <FileCheck size={16} />
-                <span>Workflow &amp; OCR Engine</span>
+                <span>Workflow &amp; OCR</span>
                 <ArrowRight size={14} />
+              </Link>
+              <Link to="/compliance" className="btn btn-secondary" id="dashboard-view-compliance">
+                <Clock size={16} />
+                <span>Compliance &amp; Deadlines</span>
+              </Link>
+              <Link to="/alerts" className="btn btn-secondary" id="dashboard-view-alerts">
+                <Bell size={16} />
+                <span>Regulatory Alerts</span>
               </Link>
               <Link to="/institutions" className="btn btn-secondary" id="dashboard-view-institutions">
                 <Building2 size={16} />
@@ -102,6 +112,44 @@ export const Dashboard: React.FC = () => {
               </Link>
               <Link to="/applications/bbbbbbbb-bbbb-bbbb-bbbb-000000000001" className="btn btn-secondary btn-sm">
                 View OCR Sample (Delhi Tech)
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="gov-card" style={{ borderTop: '3px solid #0284c7' }}>
+          <div className="gov-card-header">
+            <span className="gov-card-title">
+              <Clock size={16} color="#0284c7" /> Compliance &amp; Deadlines
+            </span>
+            <span className="badge badge-info">APH 2024–27</span>
+          </div>
+          <div className="gov-card-body">
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
+              Automated continuous surveillance of Fire Safety NOCs, missing mandatory documents, and statutory representation cutoffs.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Link to="/compliance" className="btn btn-primary btn-sm" style={{ backgroundColor: 'var(--gov-navy)' }}>
+                View Compliance Center &rarr;
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="gov-card" style={{ borderTop: '3px solid #ef4444' }}>
+          <div className="gov-card-header">
+            <span className="gov-card-title">
+              <Bell size={16} color="#ef4444" /> Regulatory Alerts
+            </span>
+            <span className="badge badge-danger">Multi-Channel</span>
+          </div>
+          <div className="gov-card-body">
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
+              Real-time multi-channel alerts (In-App, Email), officer acknowledgement receipts, and supervisory escalations to Regional HQ.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Link to="/alerts" className="btn btn-primary btn-sm" style={{ backgroundColor: 'var(--gov-navy)' }}>
+                Open Alerts Feed &rarr;
               </Link>
             </div>
           </div>

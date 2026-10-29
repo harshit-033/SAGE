@@ -15,11 +15,12 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       badgeClass = 'badge-success'
       label = status === 'UP' ? 'Operational' : 'Active'
       break
+    case 'PENDING':
     case 'PENDING_APPROVAL':
     case 'PENDING_SCRUTINY':
     case 'IN_PROGRESS':
       badgeClass = 'badge-warning'
-      label = 'Pending Review'
+      label = status.toUpperCase() === 'PENDING' ? 'Pending' : 'Pending Review'
       break
     case 'DEFICIENT':
     case 'DOWN':

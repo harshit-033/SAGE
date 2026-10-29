@@ -13,5 +13,6 @@ import java.util.UUID;
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
     List<Document> findByApplicationIdOrderByCreatedAtDesc(UUID applicationId);
     List<Document> findByApplicationIdAndDocumentType(UUID applicationId, DocumentType documentType);
+    List<Document> findByInstitutionId(UUID institutionId);
     Optional<Document> findBySha256Hash(String sha256Hash);
 }

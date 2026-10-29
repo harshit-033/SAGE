@@ -10,6 +10,8 @@ import {
   Server,
   LayoutDashboard,
   CheckCircle2,
+  Bell,
+  Clock,
 } from 'lucide-react'
 
 export const Sidebar: React.FC = () => {
@@ -80,7 +82,45 @@ export const Sidebar: React.FC = () => {
               })}
             >
               <FileCheck size={16} />
-              <span>Applications, OCR &amp; Workflow</span>
+              <span>Applications &amp; OCR</span>
+            </NavLink>
+
+            <NavLink
+              to="/compliance"
+              style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.65rem',
+                padding: '0.55rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
+                backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
+                fontWeight: isActive ? 700 : 500,
+                fontSize: '0.85rem',
+                textDecoration: 'none',
+              })}
+            >
+              <Clock size={16} />
+              <span>Compliance &amp; Deadlines</span>
+            </NavLink>
+
+            <NavLink
+              to="/alerts"
+              style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.65rem',
+                padding: '0.55rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
+                backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
+                fontWeight: isActive ? 700 : 500,
+                fontSize: '0.85rem',
+                textDecoration: 'none',
+              })}
+            >
+              <Bell size={16} />
+              <span>Alerts &amp; Notifications</span>
             </NavLink>
 
             <NavLink

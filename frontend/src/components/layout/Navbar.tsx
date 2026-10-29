@@ -8,6 +8,8 @@ import {
   ShieldAlert,
   Server,
   LayoutDashboard,
+  Bell,
+  Clock,
 } from 'lucide-react'
 
 export const Navbar: React.FC = () => {
@@ -67,6 +69,39 @@ export const Navbar: React.FC = () => {
               </span>
             </div>
 
+            {/* Regulatory Alerts Bell Button */}
+            <NavLink
+              to="/alerts"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '32px',
+                height: '32px',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--bg-surface-secondary)',
+                border: '1px solid var(--border-medium)',
+                color: 'var(--gov-navy)',
+                position: 'relative',
+                textDecoration: 'none',
+              }}
+              title="Regulatory Alerts & Notifications"
+              id="navbar-alerts-btn"
+            >
+              <Bell size={16} />
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#ef4444',
+                }}
+              />
+            </NavLink>
+
             {/* User Profile Info */}
             {user && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -104,6 +139,20 @@ export const Navbar: React.FC = () => {
               <NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'active' : '')}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                   <LayoutDashboard size={15} /> Dashboard
+                </span>
+              </NavLink>
+            </li>
+            <li className="gov-nav-item">
+              <NavLink to="/compliance" className={({ isActive }) => (isActive ? 'active' : '')}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Clock size={15} /> Compliance
+                </span>
+              </NavLink>
+            </li>
+            <li className="gov-nav-item">
+              <NavLink to="/alerts" className={({ isActive }) => (isActive ? 'active' : '')}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Bell size={15} /> Alerts
                 </span>
               </NavLink>
             </li>
