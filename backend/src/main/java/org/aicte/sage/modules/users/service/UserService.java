@@ -3,7 +3,10 @@ package org.aicte.sage.modules.users.service;
 import org.aicte.sage.common.api.PageResponse;
 import org.aicte.sage.common.audit.AuditService;
 import org.aicte.sage.common.exception.ResourceNotFoundException;
+import org.aicte.sage.common.security.AuthoritativeAuthorizationService;
 import org.aicte.sage.common.security.UserPrincipal;
+import org.aicte.sage.modules.governance.repository.JurisdictionAssignmentRepository;
+import org.aicte.sage.modules.institutions.entity.Institution;
 import org.aicte.sage.modules.institutions.entity.InstitutionUser;
 import org.aicte.sage.modules.institutions.repository.InstitutionRepository;
 import org.aicte.sage.modules.institutions.repository.InstitutionUserRepository;
@@ -15,7 +18,9 @@ import org.aicte.sage.modules.users.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +38,8 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final InstitutionUserRepository institutionUserRepository;
     private final InstitutionRepository institutionRepository;
+    private final JurisdictionAssignmentRepository jurisdictionRepository;
+    private final AuthoritativeAuthorizationService authorizationService;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
 
@@ -40,19 +47,57 @@ public class UserService {
                        RoleRepository roleRepository,
                        InstitutionUserRepository institutionUserRepository,
                        InstitutionRepository institutionRepository,
+                       JurisdictionAssignmentRepository jurisdictionRepository,
+                       AuthoritativeAuthorizationService authorizationService,
                        PasswordEncoder passwordEncoder,
                        AuditService auditService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.institutionUserRepository = institutionUserRepository;
         this.institutionRepository = institutionRepository;
+        this.jurisdictionRepository = jurisdictionRepository;
+        this.authorizationService = authorizationService;
         this.passwordEncoder = passwordEncoder;
         this.auditService = auditService;
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<UserDto> getUsersPaginated(String query, Boolean active, Pageable pageable) {
-        Page<User> page = userRepository.searchUsers(query, active, pageable);
+    public PageResponse<UserDto> getUsersPaginated(String query, Boolean active, Pageable pageable, UserPrincipal principal) {
+        Page<User> page;
+
+        if (principal.hasRole("ROLE_AICTE_ADMIN")) {
+            // Central Admin has global user directory visibility
+            page = userRepository.searchUsers(query, active, pageable);
+        } else if (principal.hasRole("ROLE_REGIONAL_OFFICER")) {
+            // Regional Officer can only view users affiliated with institutions in their assigned states
+            List<String> states = jurisdictionRepository.findActiveStatesByUserId(principal.getId());
+            if (states.contains("*")) {
+                page = userRepository.searchUsers(query, active, pageable);
+            } else if (states.isEmpty()) {
+                page = new PageImpl<>(Collections.emptyList(), pageable, 0);
+            } else {
+                List<UUID> instIds = institutionRepository.findAll().stream()
+                        .filter(i -> i.getState() != null && states.stream().anyMatch(s -> s.equalsIgnoreCase(i.getState())))
+                        .map(Institution::getId)
+                        .collect(Collectors.toList());
+                if (instIds.isEmpty()) {
+                    page = new PageImpl<>(Collections.emptyList(), pageable, 0);
+                } else {
+                    page = userRepository.searchScopedUsers(instIds, query, active, pageable);
+                }
+            }
+        } else if (principal.hasRole("ROLE_INSTITUTION_OFFICER")) {
+            // Institution Officer can only view users affiliated with their own institution
+            Set<UUID> instIds = principal.getAuthorizedInstitutionIds();
+            if (instIds.isEmpty()) {
+                page = new PageImpl<>(Collections.emptyList(), pageable, 0);
+            } else {
+                page = userRepository.searchScopedUsers(instIds, query, active, pageable);
+            }
+        } else {
+            page = new PageImpl<>(Collections.emptyList(), pageable, 0);
+        }
+
         List<UserDto> dtos = page.getContent().stream()
                 .map(this::toUserDto)
                 .collect(Collectors.toList());
@@ -60,9 +105,19 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserDto getUserById(UUID id) {
+    public UserDto getUserById(UUID id, UserPrincipal principal) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", id));
+
+        List<UUID> affiliatedInstIds = institutionUserRepository.findAllByUserId(user.getId())
+                .stream()
+                .map(InstitutionUser::getInstitutionId)
+                .collect(Collectors.toList());
+
+        if (!authorizationService.canInspectUser(principal, user, affiliatedInstIds)) {
+            throw new AccessDeniedException("Access denied: You are not authorized to view user " + user.getUsername());
+        }
+
         return toUserDto(user);
     }
 
@@ -72,6 +127,16 @@ public class UserService {
         }
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Email address '" + request.getEmail() + "' is already registered");
+        }
+
+        // Prevent unauthorized privilege escalation
+        authorizationService.validateRoleAssignmentPrivilege(principal, request.getRoles(), null);
+
+        // Explicit validation: reject unknown institution ID instead of silently omitting affiliation
+        if (request.getInstitutionId() != null) {
+            if (!institutionRepository.existsById(request.getInstitutionId())) {
+                throw new ResourceNotFoundException("Institution", request.getInstitutionId());
+            }
         }
 
         User user = new User(
@@ -92,20 +157,18 @@ public class UserService {
 
         User saved = userRepository.save(user);
 
-        // Optional institutional affiliation
+        // Institutional affiliation
         if (request.getInstitutionId() != null) {
-            if (institutionRepository.existsById(request.getInstitutionId())) {
-                InstitutionUser iu = new InstitutionUser(
-                        request.getInstitutionId(),
-                        saved.getId(),
-                        "INSTITUTION_REPRESENTATIVE",
-                        true
-                );
-                institutionUserRepository.save(iu);
-            }
+            InstitutionUser iu = new InstitutionUser(
+                    request.getInstitutionId(),
+                    saved.getId(),
+                    "INSTITUTION_REPRESENTATIVE",
+                    true
+            );
+            institutionUserRepository.save(iu);
         }
 
-        auditService.recordEvent(
+        auditService.recordMandatoryEvent(
                 "USER_CREATED",
                 principal.getUsername(),
                 request.getInstitutionId(),
@@ -123,6 +186,15 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", id));
 
+        List<UUID> affiliatedInstIds = institutionUserRepository.findAllByUserId(user.getId())
+                .stream()
+                .map(InstitutionUser::getInstitutionId)
+                .collect(Collectors.toList());
+
+        if (!authorizationService.canInspectUser(principal, user, affiliatedInstIds)) {
+            throw new AccessDeniedException("Access denied: You are not authorized to modify user " + user.getUsername());
+        }
+
         if (!user.getEmail().equalsIgnoreCase(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Email '" + request.getEmail() + "' is already registered by another account");
         }
@@ -131,7 +203,7 @@ public class UserService {
         user.setEmail(request.getEmail());
         User updated = userRepository.save(user);
 
-        auditService.recordEvent(
+        auditService.recordMandatoryEvent(
                 "USER_UPDATED",
                 principal.getUsername(),
                 null,
@@ -153,10 +225,19 @@ public class UserService {
             throw new IllegalArgumentException("Administrators cannot suspend their own active session account");
         }
 
+        List<UUID> affiliatedInstIds = institutionUserRepository.findAllByUserId(user.getId())
+                .stream()
+                .map(InstitutionUser::getInstitutionId)
+                .collect(Collectors.toList());
+
+        if (!authorizationService.canInspectUser(principal, user, affiliatedInstIds)) {
+            throw new AccessDeniedException("Access denied: You are not authorized to modify status for user " + user.getUsername());
+        }
+
         user.setActive(request.getActive());
         User updated = userRepository.save(user);
 
-        auditService.recordEvent(
+        auditService.recordMandatoryEvent(
                 "USER_STATUS_CHANGED",
                 principal.getUsername(),
                 null,
@@ -175,6 +256,9 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", id));
 
+        // Prevent privilege escalation
+        authorizationService.validateRoleAssignmentPrivilege(principal, request.getRoles(), user);
+
         Set<Role> roles = new HashSet<>();
         for (String roleCode : request.getRoles()) {
             Role role = roleRepository.findByCode(roleCode)
@@ -184,7 +268,7 @@ public class UserService {
         user.setRoles(roles);
         User updated = userRepository.save(user);
 
-        auditService.recordEvent(
+        auditService.recordMandatoryEvent(
                 "ROLE_ASSIGNED",
                 principal.getUsername(),
                 null,
@@ -199,8 +283,10 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public List<Role> getAllRoles() {
-        return roleRepository.findAll();
+    public List<RoleDto> getAllRoles() {
+        return roleRepository.findAll().stream()
+                .map(RoleDto::fromEntity)
+                .collect(Collectors.toList());
     }
 
     private UserDto toUserDto(User user) {

@@ -39,3 +39,19 @@ async def test_internal_ping_valid_token_success():
         data = response.json()
         assert data["status"] == "ACKNOWLEDGED"
         assert "Echo from sage-backend: Health sync ping" in data["echo"]
+
+
+def test_production_mode_rejects_weak_or_default_service_token():
+    from app.core.config import Settings
+    # Attempting to use default token in production must raise ValueError
+    with pytest.raises(ValueError, match="Production configuration rejected"):
+        Settings(ENVIRONMENT="production", INTERNAL_SERVICE_TOKEN="sage_internal_dev_service_secret_token_12345")
+
+    # Attempting to use short token (<32 chars) in production must raise ValueError
+    with pytest.raises(ValueError, match="Production configuration rejected"):
+        Settings(ENVIRONMENT="production", INTERNAL_SERVICE_TOKEN="too_short_token")
+
+    # Valid 32+ character production token succeeds
+    valid_prod = Settings(ENVIRONMENT="production", INTERNAL_SERVICE_TOKEN="a_very_strong_production_service_token_that_is_long_enough_123")
+    assert valid_prod.INTERNAL_SERVICE_TOKEN == "a_very_strong_production_service_token_that_is_long_enough_123"
+

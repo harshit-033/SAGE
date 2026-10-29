@@ -27,4 +27,18 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, UUID> {
                                        @Param("resourceType") String resourceType,
                                        @Param("correlationId") String correlationId,
                                        Pageable pageable);
+
+    @Query("SELECT a FROM AuditEvent a WHERE " +
+           "(a.institutionId IN :institutionIds OR (a.principal = :principalUsername AND a.institutionId IS NULL)) AND " +
+           "(:principal IS NULL OR :principal = '' OR LOWER(a.principal) LIKE LOWER(CONCAT('%', :principal, '%'))) AND " +
+           "(:eventType IS NULL OR :eventType = '' OR a.eventType = :eventType) AND " +
+           "(:resourceType IS NULL OR :resourceType = '' OR a.resourceType = :resourceType) AND " +
+           "(:correlationId IS NULL OR :correlationId = '' OR a.correlationId = :correlationId)")
+    Page<AuditEvent> searchScopedAuditEvents(@Param("institutionIds") java.util.Collection<UUID> institutionIds,
+                                             @Param("principalUsername") String principalUsername,
+                                             @Param("principal") String principal,
+                                             @Param("eventType") String eventType,
+                                             @Param("resourceType") String resourceType,
+                                             @Param("correlationId") String correlationId,
+                                             Pageable pageable);
 }

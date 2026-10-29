@@ -13,7 +13,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:sage_db}}
     username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:sage_user}}
-    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:sage_secure_pass_dev_only}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:}}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -22,7 +22,7 @@ spring:
     open-in-view: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
 
   flyway:
     enabled: true
@@ -32,10 +32,10 @@ spring:
 sage:
   security:
     jwt:
-      secret: ${JWT_SECRET:sage_default_insecure_dev_jwt_secret_key_minimum_32_characters_for_hmac_sha256}
+      secret: ${JWT_SECRET:}
       expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 hours
     internal:
-      service-token: ${INTERNAL_SERVICE_TOKEN:sage_internal_service_secret_token_12345}
+      service-token: ${INTERNAL_SERVICE_TOKEN:}
   automation:
     service-url: ${AUTOMATION_SERVICE_URL:http://localhost:8000}
 
@@ -46,7 +46,7 @@ management:
         include: health,info,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
       probes:
         enabled: true
 

@@ -87,12 +87,13 @@ All error responses across all services follow standard `ProblemDetails`:
 ## 4. Subsystem Module Structure
 
 ### Java Backend Modules (`org.aicte.sage`)
-- `common/`: Core abstractions, API error models, correlation filters, security evaluators.
-- `modules/auth/`: JWT authentication, login flow, token verification, local fallback auth.
+- `common/`: Core abstractions, API error models, correlation filters, authoritative authorization evaluator, pagination safety utils.
+- `modules/auth/`: JWT authentication, login flow, token verification, server-side token revocation (`TokenRevocationService`).
+- `modules/governance/`: Regional jurisdiction assignments, case assignments, and APH statutory committee appointments (`committee_appointments`).
 - `modules/users/`: User entity, role assignments, user repository and query services.
 - `modules/institutions/`: Institution domain, tenancy scoping, institution profile management.
-- `modules/audit/`: Audit event listener, persistence repository, query API.
-- *Prepared boundaries for Phase 2+*:
+- `modules/audit/`: Audit event listener, transactional outbox persistence repository, scoped query API.
+- *Prepared boundaries for Phase 3+*:
   - `modules/applications/`: AICTE approval application submission and life cycle.
   - `modules/workflow/`: Multi-stage approval state transitions.
   - `modules/scrutiny/`: Automated deficiency checking and scoring.

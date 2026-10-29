@@ -1,8 +1,5 @@
 package org.aicte.sage.common.security;
 
-import org.aicte.sage.common.audit.AuditService;
-import org.aicte.sage.common.exception.TenantIsolationException;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
@@ -11,10 +8,10 @@ import java.util.UUID;
 @Component("tenancyEvaluator")
 public class TenancyAuthorizationEvaluator {
 
-    private final AuditService auditService;
+    private final AuthoritativeAuthorizationService authorizationService;
 
-    public TenancyAuthorizationEvaluator(AuditService auditService) {
-        this.auditService = auditService;
+    public TenancyAuthorizationEvaluator(AuthoritativeAuthorizationService authorizationService) {
+        this.authorizationService = authorizationService;
     }
 
     public boolean hasAccessToInstitution(Authentication authentication, UUID institutionId) {
@@ -27,28 +24,10 @@ public class TenancyAuthorizationEvaluator {
             return false;
         }
 
-        // Global administrators and regional officers have cross-institution regulatory access
-        if (principal.hasRole("ROLE_AICTE_ADMIN") || principal.hasRole("ROLE_REGIONAL_OFFICER")
-                || principal.hasRole("ROLE_AUDITOR") || principal.hasRole("ROLE_SCRUTINY_OFFICER")
-                || principal.hasRole("ROLE_EVC_COORDINATOR") || principal.hasRole("ROLE_COMPLIANCE_OFFICER")) {
-            return true;
-        }
-
-        boolean authorized = principal.isAuthorizedForInstitution(institutionId);
+        boolean authorized = authorizationService.canAccessInstitution(principal, institutionId);
         if (!authorized) {
-            auditService.recordEvent(
-                    "TENANCY_VIOLATION_ATTEMPT",
-                    principal.getUsername(),
-                    institutionId,
-                    "INSTITUTION",
-                    institutionId != null ? institutionId.toString() : "UNKNOWN",
-                    "UNAUTHORIZED_ACCESS",
-                    null,
-                    "Principal attempted to access institution without explicit institutional affiliation"
-            );
-            throw new TenantIsolationException(institutionId, principal.getUsername());
+            authorizationService.checkAccessToInstitution(principal, institutionId, "UNAUTHORIZED_ACCESS");
         }
-
         return true;
     }
 
@@ -62,27 +41,11 @@ public class TenancyAuthorizationEvaluator {
             return false;
         }
 
-        // Global administrators can update any institution profile
-        if (principal.hasRole("ROLE_AICTE_ADMIN")) {
-            return true;
+        boolean authorized = authorizationService.canUpdateInstitution(principal, institutionId);
+        if (!authorized) {
+            authorizationService.checkUpdateInstitution(principal, institutionId);
         }
-
-        // Institution officer must belong to this institution AND possess INSTITUTION_WRITE authority
-        if (principal.isAuthorizedForInstitution(institutionId) && principal.hasAuthority("INSTITUTION_WRITE")) {
-            return true;
-        }
-
-        auditService.recordEvent(
-                "TENANCY_VIOLATION_ATTEMPT",
-                principal.getUsername(),
-                institutionId,
-                "INSTITUTION",
-                institutionId != null ? institutionId.toString() : "UNKNOWN",
-                "UNAUTHORIZED_UPDATE",
-                null,
-                "Principal lacks authority or institutional affiliation to modify institution"
-        );
-        throw new TenantIsolationException(institutionId, principal.getUsername());
+        return true;
     }
 
     public boolean hasAccessToInstitution(Authentication authentication, String institutionIdStr) {

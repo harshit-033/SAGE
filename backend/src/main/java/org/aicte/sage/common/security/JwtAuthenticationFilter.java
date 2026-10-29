@@ -4,7 +4,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.aicte.sage.modules.auth.service.TokenRevocationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,18 +26,23 @@ import java.util.UUID;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+
     public static final String INTERNAL_SERVICE_HEADER = "X-Internal-Service-Token";
 
     private final JwtTokenProvider tokenProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final TokenRevocationService tokenRevocationService;
     private final String internalServiceToken;
 
     public JwtAuthenticationFilter(
             JwtTokenProvider tokenProvider,
             CustomUserDetailsService userDetailsService,
-            @Value("${sage.security.internal.service-token}") String internalServiceToken) {
+            TokenRevocationService tokenRevocationService,
+            @Value("${sage.security.internal.service-token:}") String internalServiceToken) {
         this.tokenProvider = tokenProvider;
         this.userDetailsService = userDetailsService;
+        this.tokenRevocationService = tokenRevocationService;
         this.internalServiceToken = internalServiceToken;
     }
 
@@ -44,7 +53,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             // 1. Check for Service-to-Service Machine Identity
             String serviceToken = request.getHeader(INTERNAL_SERVICE_HEADER);
-            if (StringUtils.hasText(serviceToken) && serviceToken.equals(internalServiceToken)) {
+            if (StringUtils.hasText(serviceToken) && StringUtils.hasText(internalServiceToken)
+                    && serviceToken.equals(internalServiceToken)) {
                 UserPrincipal servicePrincipal = new UserPrincipal(
                         UUID.fromString("00000000-0000-0000-0000-000000000099"),
                         "SERVICE_AUTOMATION_ENGINE",
@@ -65,18 +75,47 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             // 2. Check for Human User Bearer Token
             String jwt = extractJwtFromRequest(request);
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                String username = tokenProvider.getUsernameFromToken(jwt);
-                if (StringUtils.hasText(username)) {
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+            if (StringUtils.hasText(jwt)) {
+                if (tokenProvider.validateToken(jwt)) {
+                    // Check if token has been revoked on server side
+                    String jti = tokenProvider.getJtiFromToken(jwt);
+                    if (jti != null && tokenRevocationService.isTokenRevoked(jti)) {
+                        log.warn("Access attempt with revoked JWT [jti={}]", jti);
+                        SecurityContextHolder.clearContext();
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+
+                    String username = tokenProvider.getUsernameFromToken(jwt);
+                    if (StringUtils.hasText(username)) {
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+                        // Strictly reject deactivated or locked users
+                        if (!userDetails.isEnabled() || !userDetails.isAccountNonLocked()) {
+                            log.warn("Access rejected for deactivated/locked user: {}", username);
+                            SecurityContextHolder.clearContext();
+                            filterChain.doFilter(request, response);
+                            return;
+                        }
+
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+                } else {
+                    // Token invalid or expired: clear security context
+                    SecurityContextHolder.clearContext();
                 }
             }
+        } catch (DataAccessException dae) {
+            // Operational error: do not swallow as simple authentication failure
+            log.error("Database operational error during user authentication lookup: {}", dae.getMessage());
+            SecurityContextHolder.clearContext();
+            throw dae;
         } catch (Exception ex) {
-            logger.warn("Could not set user authentication in security context: " + ex.getMessage());
+            log.warn("Authentication failed, clearing security context: {}", ex.getMessage());
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
@@ -85,7 +124,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private String extractJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
+            return bearerToken.substring(7).trim();
         }
         return null;
     }

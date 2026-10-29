@@ -56,6 +56,54 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(details);
     }
 
+    @ExceptionHandler(org.aicte.sage.common.exception.AuditPersistenceException.class)
+    public ResponseEntity<ProblemDetails> handleAuditPersistenceException(org.aicte.sage.common.exception.AuditPersistenceException ex, HttpServletRequest request) {
+        String correlationId = CorrelationIdFilter.getCurrentCorrelationId();
+        log.error("Mandatory regulatory audit persistence failure [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ProblemDetails details = new ProblemDetails(
+                URI.create("https://api.aicte.gov.in/errors/audit-persistence-failed"),
+                "Regulatory Audit Failure",
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "The regulatory action could not be completed because mandatory audit recording failed. Transaction rolled back.",
+                request.getRequestURI(),
+                correlationId
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(details);
+    }
+
+    @ExceptionHandler(org.springframework.security.authentication.InternalAuthenticationServiceException.class)
+    public ResponseEntity<ProblemDetails> handleInternalAuthServiceException(org.springframework.security.authentication.InternalAuthenticationServiceException ex, HttpServletRequest request) {
+        String correlationId = CorrelationIdFilter.getCurrentCorrelationId();
+        log.error("Operational authentication system error [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ProblemDetails details = new ProblemDetails(
+                URI.create("https://api.aicte.gov.in/errors/auth-service-error"),
+                "Authentication Service Error",
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "An operational system error occurred during authentication processing. Reference correlation ID for support.",
+                request.getRequestURI(),
+                correlationId
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(details);
+    }
+
+    @ExceptionHandler(org.springframework.security.authentication.DisabledException.class)
+    public ResponseEntity<ProblemDetails> handleDisabledException(org.springframework.security.authentication.DisabledException ex, HttpServletRequest request) {
+        String correlationId = CorrelationIdFilter.getCurrentCorrelationId();
+        log.warn("Account deactivated access attempt [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ProblemDetails details = new ProblemDetails(
+                URI.create("https://api.aicte.gov.in/errors/account-deactivated"),
+                "Account Deactivated",
+                HttpStatus.FORBIDDEN.value(),
+                "Your user account is deactivated or suspended. Please contact AICTE administrator.",
+                request.getRequestURI(),
+                correlationId
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(details);
+    }
+
     @ExceptionHandler({AuthenticationException.class, BadCredentialsException.class, InvalidCredentialsException.class})
     public ResponseEntity<ProblemDetails> handleAuthenticationException(Exception ex, HttpServletRequest request) {
         String correlationId = CorrelationIdFilter.getCurrentCorrelationId();

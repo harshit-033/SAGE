@@ -10,94 +10,140 @@ The SAGE platform adheres to a **Zero-Trust, Multi-Tenant Isolation** architectu
 
 ---
 
-## 2. Role-Based Access Control (RBAC) & Permission Matrix
+## 2. APH Handbook-Aligned Role, Committee & Authority Architecture
 
-SAGE supports 9 normalized statutory roles with granular separation of duties:
+SAGE strictly distinguishes between **Statutory Bodies & Committees** defined by the AICTE Act 1987 & Approval Process Handbook 2024-27 (Annexure 16), **Operational Roles** created for portal workflows, and **Technical Service Identities** used for automation.
 
-| Role Code | Role Name | Tenancy Scope | Key Permissions |
+### 2.1 Statutory Bodies & Committees (APH Annexure 16 / Clauses 16.1 – 16.8)
+| Committee / Body | APH Clause & Printed Page | Composition & Quorum Requirements | Statutory Responsibilities |
 |---|---|---|---|
-| `ROLE_AICTE_ADMIN` | AICTE Central Administrator | Global | `USER_READ`, `USER_WRITE`, `USER_ACTIVATE`, `ROLE_ASSIGN`, `INSTITUTION_ACTIVATE`, `AUDIT_EXPORT`, `INSTITUTION_WRITE`, `INSTITUTION_READ`, `WORKFLOW_TRANSITION` |
-| `ROLE_REGIONAL_OFFICER` | AICTE Regional Officer | Regional Jurisdiction | `INSTITUTION_READ`, `USER_READ`, `WORKFLOW_TRANSITION`, `APPLICATION_READ` |
-| `ROLE_SCRUTINY_OFFICER` | Scrutiny Officer / Expert | Assigned Application | `INSTITUTION_READ`, `APPLICATION_READ`, `SCRUTINY_EVALUATE` |
-| `ROLE_EVC_COORDINATOR` | EVC Coordinator | Inspection Panels | `INSTITUTION_READ`, `EVC_MANAGE`, `APPLICATION_READ` |
-| `ROLE_EVC_MEMBER` | Expert Visit Committee Member | Assigned Visit | `INSTITUTION_READ`, `APPLICATION_READ` |
-| `ROLE_COMMITTEE_MEMBER` | Standing Appellate Committee | Hearing / Appeals | `INSTITUTION_READ`, `APPLICATION_READ`, `WORKFLOW_TRANSITION` |
-| `ROLE_COMPLIANCE_OFFICER` | Compliance Officer | Continuous Monitoring | `INSTITUTION_READ`, `COMPLIANCE_VERIFY`, `APPLICATION_READ` |
-| `ROLE_AUDITOR` | Regulatory Reviewer / Auditor | Read-Only Regulatory Scope | `INSTITUTION_READ`, `AUDIT_READ`, `AUDIT_EXPORT` |
-| `ROLE_INSTITUTION_OFFICER` | Institution Authorized Signatory | Scoped to Specific Institution(s) | `INSTITUTION_READ`, `INSTITUTION_WRITE` (own institution only), `APPLICATION_SUBMIT`, `APPLICATION_READ` |
+| **The Council** | Clause 16.1 & 16.8 (p. 177-178) | Statutory apex body per Section 10 of AICTE Act, 1987 | Final policy, ratification, and appellate determination |
+| **Executive Committee (EC)** | Clause 16.2 & 16.8 (p. 177-178) | Chairman, Vice-Chairman, Central Govt Secretary, Regional Chairs, Boards of Studies, Finance Rep, State Reps, Experts, Member Secretary. Quorum: 1/3 | Functions assigned by Council per Section 10; approval decisions |
+| **Scrutiny Committee (Chapter I)** | Clause 16.3 & 16.8 (p. 177-178) | Prof/Assoc Prof (IIT/IIM/NIT/Govt) + Bar Council Advocate + CoA Architect or Civil Structural Prof | Document verification for **Setting up New Institutions** |
+| **Scrutiny Committee (Chapter II)** | Clause 16.4 & 16.8 (p. 177-178) | Two Professors / Associate Professors of IIT / IIM / NIT / Govt Institutions | Document verification for **Existing Institutions** (EoA, Intake variation) |
+| **Re-Scrutiny Committee** | Clauses 16.3, 16.4 (p. 177-178) | Same composition as Scrutiny | Re-examination strictly limited to the specific deficiencies originally recorded |
+| **Expert Visit Committee (EVC)** | Clause 16.5 & 16.8 (p. 177-178) | Academician Professor from EC-approved panel + Assoc Prof/Industry Expert (5+ yrs) + CoA/CPWD/Civil Architect | Physical/virtual inspection of infrastructure and faculty availability |
+| **Standing Hearing Committee (SHC)** | Clause 16.6 & 16.8 (p. 177-178) | Retired High Court Judge / Eminent Vice-Chancellor (Chair) + Technical Prof/Assoc Prof + Revenue Officer/CoA Architect | Compliance assessment of EVC deficiencies and Show Cause Notices |
+| **Standing Appellate Committee (SAC)** | Clause 16.6 & 16.8 (p. 177-178) | Same composition as SHC (different members from hearing) | Quasi-judicial review of appeals against SHC recommendations |
+| **Standing Complaint Scrutiny Committee (SCSC)** | Clause 16.7 & 16.8 (p. 178) | Retired High Court Judge (Chair) + 2 Technical Assoc Profs + CoA Architect + DTE/Registrar. Quorum: Chair + 2 | Processing and hearing of complaints against institutions |
+
+> [!IMPORTANT]
+> **No Statutory Membership by Inference**: Holding an application role (`ROLE_COMMITTEE_MEMBER`, `ROLE_SCRUTINY_OFFICER`, etc.) **never** confers statutory authority. Authorization strictly verifies active, non-expired records in the `committee_appointments` table matching the specific committee type.
+
+### 2.2 Operational Roles
+| Role Code | Tenancy Scope | Authorized Governance Function |
+|---|---|---|
+| `ROLE_AICTE_ADMIN` | Global (All Tenants) | Central regulatory administration, role management, institution lifecycle, global audit inspection |
+| `ROLE_REGIONAL_OFFICER` | Regional Jurisdiction | Jurisdiction-scoped institution monitoring and workflow actions based on `jurisdiction_assignments` |
+| `ROLE_SCRUTINY_OFFICER` | Case-Assigned | Scrutiny review restricted to explicitly assigned applications (`case_assignments`) |
+| `ROLE_EVC_COORDINATOR` | Case-Assigned | Inspection panel coordination for designated colleges (`case_assignments`) |
+| `ROLE_EVC_MEMBER` | Case-Assigned | Inspection reporting for designated site visits (`case_assignments`) |
+| `ROLE_COMMITTEE_MEMBER` | Committee-Appointed | Participation in hearings/appeals validated against `committee_appointments` |
+| `ROLE_COMPLIANCE_OFFICER` | Case-Assigned | Continuous compliance monitoring restricted to active case assignments |
+| `ROLE_AUDITOR` | Case-Assigned / Scoped | Regulatory audit inspection restricted to assigned cases or authorized regional scope |
+| `ROLE_INSTITUTION_OFFICER` | Single Tenant | Management and application submission strictly for own college (`institution_users`) |
+
+### 2.3 Technical Service Identities
+| Identity | Authentication Scheme | Purpose |
+|---|---|---|
+| `SERVICE_AUTOMATION_ENGINE` | `X-Internal-Service-Token` (min 32 chars) | Automated document OCR, compliance telemetry ingestion, and async processing |
 
 ---
 
-## 3. Resource-Level Tenancy Authorization (Cross-Institution Protection)
+## 3. Authoritative Multi-Tenant Authorization Policy
 
-### The Problem
-Traditional RBAC checks whether a user has `ROLE_INSTITUTION_OFFICER`. However, an institution officer from "College A" must be prevented from reading applications or modifying profiles belonging to "College B" (Broken Object Level Authorization - BOLA / IDOR).
+Authorization is enforced at both controller and service/domain boundaries by [AuthoritativeAuthorizationService.java](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/backend/src/main/java/org/aicte/sage/common/security/AuthoritativeAuthorizationService.java):
 
-### SAGE Solution: Multi-Layer Authorization
-1. **Layer 1: Method-Level Security**:
-   Spring Security checks `@PreAuthorize("@tenancyEvaluator.canUpdateInstitution(authentication, #id)")` or `@tenancyEvaluator.hasAccessToInstitution(authentication, #id)`.
-2. **Layer 2: Domain-Level Tenancy Evaluator**:
-   `TenancyAuthorizationEvaluator` inspects the target resource's `institution_id`.
-   - If the caller has `ROLE_AICTE_ADMIN` or global regulatory review roles, access is granted.
-   - If the caller is an institutional user, the evaluator queries `institution_users` table to verify active membership between `user_id` and `target_institution_id`, AND verifies the required capability (e.g. `INSTITUTION_WRITE` for profile updates).
-   - If no valid active link exists, a `TenantIsolationException` is thrown:
-     - Returns HTTP `403 Forbidden` with a standardized Problem Details payload.
-     - Automatically emits a `TENANCY_VIOLATION_ATTEMPT` event to the `audit_events` table recording the caller identity, client IP, target institution ID, action, and correlation ID.
+```mermaid
+flowchart TD
+    Req[Incoming Request] --> AuthCheck{Authenticated?}
+    AuthCheck -->|No| R401[401 Unauthorized]
+    AuthCheck -->|Yes| RevokedCheck{Token Revoked in DB/Cache?}
+    RevokedCheck -->|Yes| R401
+    RevokedCheck -->|No| EnabledCheck{Account Enabled?}
+    EnabledCheck -->|No| R401
+    EnabledCheck -->|Yes| PermCheck{Has Required Authority?}
+    PermCheck -->|No| R403[403 Forbidden]
+    PermCheck -->|Yes| TargetScope{Target Resource Scope}
+    TargetScope -->|Admin Role| Allow[Allow Execution]
+    TargetScope -->|Own Institution| AffiliationCheck{In institution_users?}
+    AffiliationCheck -->|Yes| Allow
+    AffiliationCheck -->|No| Violate[TENANCY_VIOLATION_ATTEMPT & 403 Forbidden]
+    TargetScope -->|Regional Officer| JurisdictionCheck{State in jurisdiction_assignments?}
+    JurisdictionCheck -->|Yes| Allow
+    JurisdictionCheck -->|No| Violate
+    TargetScope -->|Scrutiny/EVC/Compliance/Auditor| CaseCheck{Institution in case_assignments?}
+    CaseCheck -->|Yes| Allow
+    CaseCheck -->|No| Violate
+```
+
+### Elimination of Blanket Cross-Institution Access
+Officers no longer possess unrestricted, role-based read/update access across colleges. Access to any institution record requires:
+1. Global administrative role (`ROLE_AICTE_ADMIN`), OR
+2. Direct institutional affiliation in `institution_users`, OR
+3. Active regional jurisdiction covering the institution's state in `jurisdiction_assignments`, OR
+4. Explicit active case assignment in `case_assignments`.
+
+Any violation raises `TenantIsolationException` and logs a `TENANCY_VIOLATION_ATTEMPT` audit record with client IP and correlation ID.
 
 ---
 
-## 4. Authentication Architecture
+## 4. Authentication Lifecycle & Server-Side Token Revocation
 
 ```mermaid
 sequenceDiagram
-    participant User as React Frontend / Client
+    participant Client as React Client
+    participant Filter as JwtAuthenticationFilter
+    participant RevokeSvc as TokenRevocationService
     participant AuthCtrl as AuthController
-    participant SecMgr as Spring Security AuthenticationManager
-    participant TokenProv as JwtTokenProvider
     participant DB as PostgreSQL
 
-    User->>AuthCtrl: POST /api/v1/auth/login (username/email, password)
-    AuthCtrl->>SecMgr: authenticate(UsernamePasswordAuthenticationToken)
-    SecMgr->>DB: Load user by username & fetch password hash + roles + institutions
-    DB-->>SecMgr: UserRecord (BCrypt hashed password)
-    SecMgr-->>AuthCtrl: Authentication verified
-    AuthCtrl->>TokenProv: generateToken(UserPrincipal)
-    TokenProv-->>AuthCtrl: Signed JWT (Claims: sub, roles, institutions, userId)
-    AuthCtrl-->>User: 200 OK { token, userProfile, expiresAt }
+    Client->>Filter: Request with Bearer Token (JTI: xyz)
+    Filter->>RevokeSvc: isTokenRevoked("xyz")
+    RevokeSvc->>DB: Check token_revocations table & cache
+    alt Token is Revoked
+        RevokeSvc-->>Filter: true
+        Filter-->>Client: 401 Unauthorized (Security Context Cleared)
+    else Token is Valid
+        Filter->>Filter: Check userDetails.isEnabled()
+        Filter-->>Client: Request proceeds
+    end
+
+    Note over Client,AuthCtrl: Server-Side Logout Flow
+    Client->>AuthCtrl: POST /api/v1/auth/logout (Bearer Token)
+    AuthCtrl->>RevokeSvc: revokeToken(jti, userId, expiresAt, reason)
+    RevokeSvc->>DB: INSERT INTO token_revocations
+    AuthCtrl-->>Client: 200 OK (Token Server-Revoked)
 ```
 
-### Password Hashing
-- Algorithm: **BCrypt** with 10–12 salt rounds (`$2a$10$`).
-- No plaintext passwords are ever persisted or logged.
-
-### JWT Security Specs
-- Signature Algorithm: **HMAC-SHA256** (`HS256`).
-- Token Lifetime: 24 hours (configurable).
-- Payload claims:
-  - `sub`: User ID (UUID)
-  - `username`: Account identifier
-  - `roles`: Set of assigned authority strings (`["ROLE_INSTITUTION_OFFICER"]`)
-  - `institutions`: Set of authorized Institution IDs (`["22222222-2222-2222-2222-222222222222"]`)
-  - `jti`: Unique token identifier for replay prevention.
+1. **Server-Side Token Revocation**: Each JWT contains a unique `jti` (UUID). On logout, the token is recorded in `token_revocations` and the in-memory cache until its natural expiration.
+2. **Account Deactivation Protection**: Even with a valid, non-expired JWT, deactivated/suspended users are immediately rejected (401 Unauthorized).
+3. **Operational Error Isolation**: Database connectivity issues during authentication throw `DataAccessException` rather than swallowing the error as a false credential failure.
 
 ---
 
-## 5. Service-to-Service Authentication (Backend ↔ Automation)
+## 5. Reliable Regulatory Audit (Transactional Outbox & Classification)
 
-Human identities are strictly segregated from automated service accounts:
-1. When the Python Automation service communicates with Spring Boot endpoints, it provides an `X-Internal-Service-Token` HTTP header.
-2. The Spring Boot backend validates this token against `INTERNAL_SERVICE_TOKEN` configured in environment variables.
-3. Automated requests operate under the synthetic principal `SERVICE_AUTOMATION_ENGINE` with restricted machine-to-machine capabilities.
+Audit events are strictly classified into two categories:
+
+### 5.1 Mandatory Regulatory Events (`AuditClassification.MANDATORY`)
+- **Applies to**: Consequential state changes (`INSTITUTION_CREATED`, `INSTITUTION_STATUS_CHANGED`, `INSTITUTION_USER_AFFILIATED`, `INSTITUTION_USER_REMOVED`, `USER_CREATED`, `USER_STATUS_CHANGED`, `ROLE_ASSIGNED`).
+- **Transactional Guarantee**: Executed with `Propagation.MANDATORY` within the primary caller transaction.
+- **Fail-Closed Policy**: If audit persistence fails, `AuditPersistenceException` is thrown, rolling back the business transaction. State changes can **never** commit without an audit entry.
+
+### 5.2 Best-Effort Events (`AuditClassification.BEST_EFFORT`)
+- **Applies to**: Operational logs (`AUTH_LOGIN_SUCCESS`, `AUTH_LOGIN_FAILURE`, `AUTH_LOGOUT`, `TENANCY_VIOLATION_ATTEMPT`, `PRIVILEGE_ESCALATION_BLOCKED`).
+- **Transactional Guarantee**: Executed with `Propagation.REQUIRES_NEW`. Failures are logged without interrupting non-state-changing operations.
 
 ---
 
-## 6. Audit Logging & Non-Repudiation
+## 6. Privilege Escalation Defenses & Input Safety
 
-Every consequential regulatory action produces an immutable row in the `audit_events` table:
-- **Event Types**:
-  - `AUTH_LOGIN_SUCCESS`, `AUTH_LOGIN_FAILURE`, `AUTH_LOGOUT`
-  - `TENANCY_VIOLATION_ATTEMPT`
-  - `INSTITUTION_CREATED`, `INSTITUTION_UPDATED`, `INSTITUTION_STATUS_CHANGED`
-  - `INSTITUTION_USER_AFFILIATED`, `INSTITUTION_USER_REMOVED`
-  - `USER_CREATED`, `USER_UPDATED`, `USER_STATUS_CHANGED`, `ROLE_ASSIGNED`
-- **Fields Captured**: `id`, `event_type`, `principal`, `institution_id`, `resource_type`, `resource_id`, `action`, `client_ip`, `correlation_id`, `details`, and `created_at`.
+1. **Role Assignment Privilege Boundary**: Non-administrators cannot assign `ROLE_AICTE_ADMIN`. Attempting to do so raises `AccessDeniedException` and records `PRIVILEGE_ESCALATION_BLOCKED`.
+2. **Strict Institution Reference Validation**: Associating a user with an unknown institution ID throws `ResourceNotFoundException` (HTTP 404 Problem Details) rather than silently omitting the affiliation.
+3. **Administrative Self-Lockout Prevention**: An administrator cannot suspend their own active session account.
+4. **Pagination & Query Abuse Defense**: `PaginationUtils` strictly enforces:
+   - Non-negative page index (`page >= 0`).
+   - Page size boundaries (`1 <= size <= 100`).
+   - Strict allowlist validation of sort fields (`ALLOWED_SORT_FIELDS`).
+   - Allowed sort directions (`asc` or `desc`).

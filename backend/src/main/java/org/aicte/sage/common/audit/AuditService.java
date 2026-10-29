@@ -42,7 +42,39 @@ public class AuditService {
             log.info("Audit event recorded: [{}] principal={} resource={}:{} correlationId={}",
                     eventType, principal, resourceType, resourceId, correlationId);
         } catch (Exception e) {
-            log.error("Failed to persist regulatory audit event [correlationId={}]: {}", correlationId, e.getMessage());
+            log.error("Failed to persist best-effort audit event [correlationId={}]: {}", correlationId, e.getMessage());
+        }
+    }
+
+    /**
+     * Mandatory audit logging for consequential regulatory state changes.
+     * Persisted atomically within the caller's transaction.
+     * If audit persistence fails, throws AuditPersistenceException to abort and rollback the entire operation.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void recordMandatoryEvent(String eventType, String principal, UUID institutionId,
+                                     String resourceType, String resourceId, String action,
+                                     String clientIp, String details) {
+        String correlationId = CorrelationIdFilter.getCurrentCorrelationId();
+        try {
+            AuditEvent event = new AuditEvent(
+                    eventType,
+                    principal != null ? principal : "ANONYMOUS",
+                    institutionId,
+                    resourceType,
+                    resourceId,
+                    action,
+                    clientIp,
+                    correlationId,
+                    details
+            );
+            auditEventRepository.save(event);
+            log.info("Mandatory regulatory audit event committed: [{}] principal={} resource={}:{} correlationId={}",
+                    eventType, principal, resourceType, resourceId, correlationId);
+        } catch (Exception e) {
+            log.error("CRITICAL: Failed to persist mandatory regulatory audit event [correlationId={}]: {}", correlationId, e.getMessage());
+            throw new org.aicte.sage.common.exception.AuditPersistenceException(
+                    "Consequential regulatory action aborted: mandatory audit persistence failed", e);
         }
     }
 }

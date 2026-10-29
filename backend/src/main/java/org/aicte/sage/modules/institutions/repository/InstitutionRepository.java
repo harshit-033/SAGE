@@ -44,5 +44,31 @@ public interface InstitutionRepository extends JpaRepository<Institution, UUID> 
                                                   @Param("active") Boolean active,
                                                   Pageable pageable);
 
+    @Query("SELECT i FROM Institution i WHERE " +
+           "(LOWER(i.state) IN :states) AND " +
+           "(:query IS NULL OR :query = '' OR LOWER(i.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(i.code) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(i.city) LIKE LOWER(CONCAT('%', :query, '%'))) AND " +
+           "(:state IS NULL OR :state = '' OR i.state = :state) AND " +
+           "(:category IS NULL OR :category = '' OR i.category = :category) AND " +
+           "(:active IS NULL OR i.active = :active)")
+    Page<Institution> searchByStates(@Param("states") java.util.Collection<String> states,
+                                     @Param("query") String query,
+                                     @Param("state") String state,
+                                     @Param("category") String category,
+                                     @Param("active") Boolean active,
+                                     Pageable pageable);
+
+    @Query("SELECT i FROM Institution i WHERE " +
+           "(i.id IN :ids) AND " +
+           "(:query IS NULL OR :query = '' OR LOWER(i.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(i.code) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(i.city) LIKE LOWER(CONCAT('%', :query, '%'))) AND " +
+           "(:state IS NULL OR :state = '' OR i.state = :state) AND " +
+           "(:category IS NULL OR :category = '' OR i.category = :category) AND " +
+           "(:active IS NULL OR i.active = :active)")
+    Page<Institution> searchByIds(@Param("ids") java.util.Collection<UUID> ids,
+                                  @Param("query") String query,
+                                  @Param("state") String state,
+                                  @Param("category") String category,
+                                  @Param("active") Boolean active,
+                                  Pageable pageable);
+
     boolean existsByCode(String code);
 }

@@ -42,6 +42,16 @@ public class AuditEvent {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
+    @PreUpdate
+    public void preUpdate() {
+        throw new UnsupportedOperationException("Regulatory audit records are immutable and cannot be modified.");
+    }
+
+    @PreRemove
+    public void preRemove() {
+        throw new UnsupportedOperationException("Regulatory audit records are immutable and cannot be deleted.");
+    }
+
     public AuditEvent() {}
 
     public AuditEvent(String eventType, String principal, UUID institutionId,

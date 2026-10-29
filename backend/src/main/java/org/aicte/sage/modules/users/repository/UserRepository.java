@@ -26,6 +26,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                            @Param("active") Boolean active,
                            Pageable pageable);
 
+    @Query("SELECT u FROM User u WHERE u.id IN " +
+           "(SELECT iu.userId FROM InstitutionUser iu WHERE iu.institutionId IN :institutionIds) AND " +
+           "(:query IS NULL OR :query = '' OR LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :query, '%'))) AND " +
+           "(:active IS NULL OR u.active = :active)")
+    Page<User> searchScopedUsers(@Param("institutionIds") java.util.Collection<UUID> institutionIds,
+                                 @Param("query") String query,
+                                 @Param("active") Boolean active,
+                                 Pageable pageable);
+
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
 }

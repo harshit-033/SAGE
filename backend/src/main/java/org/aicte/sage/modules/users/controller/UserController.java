@@ -33,6 +33,10 @@ public class UserController {
         this.userService = userService;
     }
 
+    private static final java.util.Set<String> ALLOWED_SORT_FIELDS = java.util.Set.of(
+            "createdAt", "username", "email", "fullName"
+    );
+
     @GetMapping
     @PreAuthorize("hasAuthority('USER_READ') or hasRole('ROLE_AICTE_ADMIN')")
     @Operation(summary = "List Users", description = "Retrieves paginated administrative and institutional user accounts")
@@ -44,10 +48,13 @@ public class UserController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
 
-        Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
-        Pageable pageable = PageRequest.of(page, size, sort);
+        UserPrincipal principal = SecurityUtils.getCurrentUserPrincipal()
+                .orElseThrow(() -> new IllegalStateException("Unauthenticated request"));
 
-        PageResponse<UserDto> response = userService.getUsersPaginated(query, active, pageable);
+        Pageable pageable = org.aicte.sage.common.api.PaginationUtils.validateAndBuildPageable(
+                page, size, sortBy, sortDir, ALLOWED_SORT_FIELDS, "createdAt");
+
+        PageResponse<UserDto> response = userService.getUsersPaginated(query, active, pageable, principal);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
@@ -55,7 +62,9 @@ public class UserController {
     @PreAuthorize("hasAuthority('USER_READ') or hasRole('ROLE_AICTE_ADMIN')")
     @Operation(summary = "Get User Details", description = "Retrieves detailed user profile, role bindings, and institutional affiliations")
     public ResponseEntity<ApiResponse<UserDto>> getUserById(@PathVariable UUID id) {
-        UserDto user = userService.getUserById(id);
+        UserPrincipal principal = SecurityUtils.getCurrentUserPrincipal()
+                .orElseThrow(() -> new IllegalStateException("Unauthenticated request"));
+        UserDto user = userService.getUserById(id, principal);
         return ResponseEntity.ok(ApiResponse.ok(user));
     }
 
@@ -113,8 +122,8 @@ public class UserController {
     @GetMapping("/roles")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "List Configured Roles", description = "Returns available system roles for user assignment")
-    public ResponseEntity<ApiResponse<List<Role>>> getAllRoles() {
-        List<Role> roles = userService.getAllRoles();
+    public ResponseEntity<ApiResponse<List<RoleDto>>> getAllRoles() {
+        List<RoleDto> roles = userService.getAllRoles();
         return ResponseEntity.ok(ApiResponse.ok(roles));
     }
 }

@@ -24,12 +24,17 @@ public class JwtTokenProvider {
     private final long expirationMs;
 
     public JwtTokenProvider(
-            @Value("${sage.security.jwt.secret}") String secret,
+            @Value("${sage.security.jwt.secret:}") String secret,
             @Value("${sage.security.jwt.expiration-ms:86400000}") long expirationMs) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT signing secret must be explicitly configured and cannot be blank.");
+        }
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
-            // Pad or securely stretch if shorter in test/dev
-            keyBytes = Arrays.copyOf(keyBytes, 32);
+            throw new IllegalArgumentException(
+                    "JWT signing secret is too weak: must be at least 32 characters (256 bits). " +
+                    "Insecure padding or stretching is strictly rejected."
+            );
         }
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
         this.expirationMs = expirationMs;
@@ -88,5 +93,13 @@ public class JwtTokenProvider {
 
     public String getUsernameFromToken(String token) {
         return getClaimsFromToken(token).get("username", String.class);
+    }
+
+    public String getJtiFromToken(String token) {
+        return getClaimsFromToken(token).getId();
+    }
+
+    public Date getExpirationDateFromToken(String token) {
+        return getClaimsFromToken(token).getExpiration();
     }
 }

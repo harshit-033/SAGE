@@ -32,6 +32,10 @@ public class InstitutionController {
         this.institutionService = institutionService;
     }
 
+    private static final java.util.Set<String> ALLOWED_SORT_FIELDS = java.util.Set.of(
+            "name", "code", "city", "state", "category", "status", "createdAt", "updatedAt"
+    );
+
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Search and List Institutions", description = "Retrieves institutions with pagination and filtering, scoped to principal tenancy")
@@ -48,8 +52,8 @@ public class InstitutionController {
         UserPrincipal principal = SecurityUtils.getCurrentUserPrincipal()
                 .orElseThrow(() -> new IllegalStateException("Unauthenticated request"));
 
-        Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
-        Pageable pageable = PageRequest.of(page, size, sort);
+        Pageable pageable = org.aicte.sage.common.api.PaginationUtils.validateAndBuildPageable(
+                page, size, sortBy, sortDir, ALLOWED_SORT_FIELDS, "name");
 
         PageResponse<InstitutionDto> result = institutionService.getInstitutionsPaginated(
                 query, state, category, active, pageable, principal);

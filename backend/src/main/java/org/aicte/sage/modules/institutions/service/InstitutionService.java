@@ -4,7 +4,10 @@ import org.aicte.sage.common.api.PageResponse;
 import org.aicte.sage.common.audit.AuditService;
 import org.aicte.sage.common.exception.ResourceNotFoundException;
 import org.aicte.sage.common.exception.TenantIsolationException;
+import org.aicte.sage.common.security.AuthoritativeAuthorizationService;
 import org.aicte.sage.common.security.UserPrincipal;
+import org.aicte.sage.modules.governance.repository.CaseAssignmentRepository;
+import org.aicte.sage.modules.governance.repository.JurisdictionAssignmentRepository;
 import org.aicte.sage.modules.institutions.dto.*;
 import org.aicte.sage.modules.institutions.entity.Institution;
 import org.aicte.sage.modules.institutions.entity.InstitutionUser;
@@ -15,10 +18,12 @@ import org.aicte.sage.modules.users.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,29 +37,50 @@ public class InstitutionService {
     private final InstitutionRepository institutionRepository;
     private final InstitutionUserRepository institutionUserRepository;
     private final UserRepository userRepository;
+    private final JurisdictionAssignmentRepository jurisdictionRepository;
+    private final CaseAssignmentRepository caseAssignmentRepository;
+    private final AuthoritativeAuthorizationService authorizationService;
     private final AuditService auditService;
 
     public InstitutionService(InstitutionRepository institutionRepository,
                               InstitutionUserRepository institutionUserRepository,
                               UserRepository userRepository,
+                              JurisdictionAssignmentRepository jurisdictionRepository,
+                              CaseAssignmentRepository caseAssignmentRepository,
+                              AuthoritativeAuthorizationService authorizationService,
                               AuditService auditService) {
         this.institutionRepository = institutionRepository;
         this.institutionUserRepository = institutionUserRepository;
         this.userRepository = userRepository;
+        this.jurisdictionRepository = jurisdictionRepository;
+        this.caseAssignmentRepository = caseAssignmentRepository;
+        this.authorizationService = authorizationService;
         this.auditService = auditService;
     }
 
     @Transactional(readOnly = true)
     public List<InstitutionDto> getInstitutionsForPrincipal(UserPrincipal principal) {
-        List<Institution> list;
-        if (principal.hasRole("ROLE_AICTE_ADMIN") || principal.hasRole("ROLE_REGIONAL_OFFICER")
-                || principal.hasRole("ROLE_AUDITOR") || principal.hasRole("ROLE_SCRUTINY_OFFICER")
-                || principal.hasRole("ROLE_COMPLIANCE_OFFICER")) {
-            list = institutionRepository.findAll();
-        } else {
-            list = institutionRepository.findAllByAffiliatedUserId(principal.getId());
+        if (principal.hasRole("ROLE_AICTE_ADMIN")) {
+            return institutionRepository.findAll().stream().map(InstitutionDto::fromEntity).collect(Collectors.toList());
         }
-        return list.stream().map(InstitutionDto::fromEntity).collect(Collectors.toList());
+        if (principal.hasRole("ROLE_REGIONAL_OFFICER")) {
+            List<String> states = jurisdictionRepository.findActiveStatesByUserId(principal.getId());
+            if (states.contains("*")) {
+                return institutionRepository.findAll().stream().map(InstitutionDto::fromEntity).collect(Collectors.toList());
+            }
+            if (states.isEmpty()) {
+                return Collections.emptyList();
+            }
+            return institutionRepository.findAll().stream()
+                    .filter(i -> i.getState() != null && states.stream().anyMatch(s -> s.equalsIgnoreCase(i.getState())))
+                    .map(InstitutionDto::fromEntity)
+                    .collect(Collectors.toList());
+        }
+        List<UUID> assignedInstIds = caseAssignmentRepository.findActiveInstitutionIdsByUserId(principal.getId());
+        if (!assignedInstIds.isEmpty()) {
+            return institutionRepository.findAllById(assignedInstIds).stream().map(InstitutionDto::fromEntity).collect(Collectors.toList());
+        }
+        return institutionRepository.findAllByAffiliatedUserId(principal.getId()).stream().map(InstitutionDto::fromEntity).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -63,10 +89,27 @@ public class InstitutionService {
             Pageable pageable, UserPrincipal principal) {
         
         Page<Institution> page;
-        if (principal.hasRole("ROLE_AICTE_ADMIN") || principal.hasRole("ROLE_REGIONAL_OFFICER")
-                || principal.hasRole("ROLE_AUDITOR") || principal.hasRole("ROLE_SCRUTINY_OFFICER")
-                || principal.hasRole("ROLE_COMPLIANCE_OFFICER")) {
+        if (principal.hasRole("ROLE_AICTE_ADMIN")) {
             page = institutionRepository.searchInstitutions(query, state, category, active, pageable);
+        } else if (principal.hasRole("ROLE_REGIONAL_OFFICER")) {
+            List<String> states = jurisdictionRepository.findActiveStatesByUserId(principal.getId());
+            if (states.contains("*")) {
+                page = institutionRepository.searchInstitutions(query, state, category, active, pageable);
+            } else if (states.isEmpty()) {
+                page = new PageImpl<>(Collections.emptyList(), pageable, 0);
+            } else {
+                List<String> lowerStates = states.stream().map(String::toLowerCase).collect(Collectors.toList());
+                page = institutionRepository.searchByStates(lowerStates, query, state, category, active, pageable);
+            }
+        } else if (principal.hasRole("ROLE_SCRUTINY_OFFICER") || principal.hasRole("ROLE_EVC_COORDINATOR")
+                || principal.hasRole("ROLE_EVC_MEMBER") || principal.hasRole("ROLE_COMPLIANCE_OFFICER")
+                || principal.hasRole("ROLE_AUDITOR")) {
+            List<UUID> assignedIds = caseAssignmentRepository.findActiveInstitutionIdsByUserId(principal.getId());
+            if (assignedIds.isEmpty()) {
+                page = new PageImpl<>(Collections.emptyList(), pageable, 0);
+            } else {
+                page = institutionRepository.searchByIds(assignedIds, query, state, category, active, pageable);
+            }
         } else {
             page = institutionRepository.searchAffiliatedInstitutions(principal.getId(), query, state, category, active, pageable);
         }
@@ -80,19 +123,7 @@ public class InstitutionService {
 
     @Transactional(readOnly = true)
     public InstitutionDto getInstitutionById(UUID id, UserPrincipal principal) {
-        if (!principal.isAuthorizedForInstitution(id)) {
-            auditService.recordEvent(
-                    "TENANCY_VIOLATION_ATTEMPT",
-                    principal.getUsername(),
-                    id,
-                    "INSTITUTION",
-                    id.toString(),
-                    "READ",
-                    null,
-                    "Unauthorized cross-tenant attempt to view institution details"
-            );
-            throw new TenantIsolationException(id, principal.getUsername());
-        }
+        authorizationService.checkAccessToInstitution(principal, id, "READ");
 
         Institution institution = institutionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Institution", id));
@@ -115,7 +146,7 @@ public class InstitutionService {
         entity.setActive(true);
         Institution saved = institutionRepository.save(entity);
 
-        auditService.recordEvent(
+        auditService.recordMandatoryEvent(
                 "INSTITUTION_CREATED",
                 principal.getUsername(),
                 saved.getId(),
@@ -130,6 +161,8 @@ public class InstitutionService {
     }
 
     public InstitutionDto updateInstitution(UUID id, UpdateInstitutionRequest request, UserPrincipal principal, String clientIp) {
+        authorizationService.checkUpdateInstitution(principal, id);
+
         Institution institution = institutionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Institution", id));
 
@@ -153,7 +186,7 @@ public class InstitutionService {
 
         Institution updated = institutionRepository.save(institution);
 
-        auditService.recordEvent(
+        auditService.recordMandatoryEvent(
                 "INSTITUTION_UPDATED",
                 principal.getUsername(),
                 updated.getId(),
@@ -168,13 +201,15 @@ public class InstitutionService {
     }
 
     public InstitutionDto setInstitutionActiveStatus(UUID id, InstitutionStatusRequest request, UserPrincipal principal, String clientIp) {
+        authorizationService.checkAccessToInstitution(principal, id, "STATUS_CHANGE");
+
         Institution institution = institutionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Institution", id));
 
         institution.setActive(request.getActive());
         Institution updated = institutionRepository.save(institution);
 
-        auditService.recordEvent(
+        auditService.recordMandatoryEvent(
                 "INSTITUTION_STATUS_CHANGED",
                 principal.getUsername(),
                 updated.getId(),
@@ -191,9 +226,7 @@ public class InstitutionService {
 
     @Transactional(readOnly = true)
     public List<InstitutionUserDto> getInstitutionUsers(UUID institutionId, UserPrincipal principal) {
-        if (!principal.isAuthorizedForInstitution(institutionId)) {
-            throw new TenantIsolationException(institutionId, principal.getUsername());
-        }
+        authorizationService.checkAccessToInstitution(principal, institutionId, "READ_USERS");
 
         List<InstitutionUser> list = institutionUserRepository.findAllByInstitutionId(institutionId);
         return list.stream().map(iu -> {
@@ -213,6 +246,8 @@ public class InstitutionService {
     }
 
     public InstitutionUserDto addInstitutionUser(UUID institutionId, AddInstitutionUserRequest request, UserPrincipal principal, String clientIp) {
+        authorizationService.checkUpdateInstitution(principal, institutionId);
+
         if (!institutionRepository.existsById(institutionId)) {
             throw new ResourceNotFoundException("Institution", institutionId);
         }
@@ -231,7 +266,7 @@ public class InstitutionService {
         );
         InstitutionUser saved = institutionUserRepository.save(iu);
 
-        auditService.recordEvent(
+        auditService.recordMandatoryEvent(
                 "INSTITUTION_USER_AFFILIATED",
                 principal.getUsername(),
                 institutionId,
@@ -256,12 +291,14 @@ public class InstitutionService {
     }
 
     public void removeInstitutionUser(UUID institutionId, UUID userId, UserPrincipal principal, String clientIp) {
+        authorizationService.checkUpdateInstitution(principal, institutionId);
+
         InstitutionUser iu = institutionUserRepository.findByInstitutionIdAndUserId(institutionId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("InstitutionUser mapping not found for user: " + userId));
 
         institutionUserRepository.delete(iu);
 
-        auditService.recordEvent(
+        auditService.recordMandatoryEvent(
                 "INSTITUTION_USER_REMOVED",
                 principal.getUsername(),
                 institutionId,

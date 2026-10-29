@@ -40,9 +40,29 @@ Every non-2xx response from Spring Boot conforms to RFC 7807:
 }
 ```
 
+### Standard Error URIs
+| Status Code | Error URI | Title | Description |
+|---|---|---|---|
+| `400 Bad Request` | `https://api.aicte.gov.in/errors/bad-request` | Bad Request | Parameter validation error, negative page index, page size > 100, or invalid sort field |
+| `401 Unauthorized` | `https://api.aicte.gov.in/errors/unauthorized` | Authentication Failed | Missing, invalid, expired, or revoked token |
+| `403 Forbidden` | `https://api.aicte.gov.in/errors/forbidden` | Access Forbidden | Caller lacks required role or permission |
+| `403 Forbidden` | `https://api.aicte.gov.in/errors/tenant-access-denied` | Tenant Access Denied | Cross-tenant access violation outside authorized scope |
+| `404 Not Found` | `https://api.aicte.gov.in/errors/resource-not-found` | Resource Not Found | Referenced entity (institution, user, etc.) does not exist |
+| `500 Internal Error` | `https://api.aicte.gov.in/errors/audit-persistence-failed` | Regulatory Audit Failure | Mandatory audit could not be persisted; transaction rolled back |
+
 ---
 
-## 4. Authentication API Endpoints (`/api/v1/auth`)
+## 4. Query Safety, Pagination & Sorting Norms
+
+All list endpoints (`/api/v1/institutions`, `/api/v1/users`, `/api/v1/audit`) strictly validate query parameters using [PaginationUtils](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/backend/src/main/java/org/aicte/sage/common/api/PaginationUtils.java):
+- **Page Index**: Must be non-negative (`page >= 0`). Values `< 0` return HTTP 400.
+- **Page Size**: Must be between 1 and 100 (`1 <= size <= 100`). Values `> 100` return HTTP 400.
+- **Sort By**: Must match the endpoint's strict allowlist of entity attributes. Unknown or SQL injection sort fields return HTTP 400.
+- **Sort Direction**: Must be either `asc` or `desc`. Any other value returns HTTP 400.
+
+---
+
+## 5. Authentication API Endpoints (`/api/v1/auth`)
 
 ### `POST /api/v1/auth/login`
 - **Access**: Public
@@ -81,19 +101,21 @@ Every non-2xx response from Spring Boot conforms to RFC 7807:
 
 ### `POST /api/v1/auth/logout`
 - **Access**: Authenticated (`Bearer <token>`)
-- **Operation**: Invalidates session context, clears security context, and records an `AUTH_LOGOUT` audit event.
+- **Operation**: Extracts `jti` from Bearer token, persists record into `token_revocations` table, populates revocation cache, clears security context, and records an `AUTH_LOGOUT` audit event. Subsequent requests using this token return `401 Unauthorized`.
 - **Success Response**: `200 OK`
 
 ---
 
-## 5. Institution Management API Endpoints (`/api/v1/institutions`)
+## 6. Institution Management API Endpoints (`/api/v1/institutions`)
 
 ### `GET /api/v1/institutions`
 - **Access**: Authenticated (`ROLE_AICTE_ADMIN`, `ROLE_REGIONAL_OFFICER`, `ROLE_INSTITUTION_OFFICER`, `ROLE_AUDITOR`)
-- **Parameters**: `page` (default 0), `size` (default 10), `query`, `category`, `state`, `active`, `sortBy`, `sortDir`
+- **Parameters**: `page` (default 0), `size` (default 10), `query`, `category`, `state`, `active`, `sortBy` (allowed: `name`, `code`, `city`, `state`, `category`, `status`, `createdAt`, `updatedAt`), `sortDir` (`asc`/`desc`)
 - **Tenancy Scoping**:
-  - `ROLE_AICTE_ADMIN` / Regional / Auditor: Nationwide view.
-  - `ROLE_INSTITUTION_OFFICER`: Automatically filtered to affiliated institutions.
+  - `ROLE_AICTE_ADMIN`: Nationwide view across all institutions.
+  - `ROLE_REGIONAL_OFFICER`: Automatically filtered to institutions in assigned regional states (`jurisdiction_assignments`).
+  - Scrutiny / EVC / Compliance / Auditor: Scoped to designated case assignments (`case_assignments`).
+  - `ROLE_INSTITUTION_OFFICER`: Automatically filtered to explicitly affiliated institutions (`institution_users`).
 - **Success Response**: `200 OK` (`PageResponse<InstitutionDto>`).
 
 ### `GET /api/v1/institutions/{id}`
@@ -104,63 +126,65 @@ Every non-2xx response from Spring Boot conforms to RFC 7807:
 ### `POST /api/v1/institutions`
 - **Access**: `ROLE_AICTE_ADMIN`
 - **Request Body**: `code`, `name`, `applicationType`, `state`, `district`.
-- **Success Response**: `201 Created` (`INSTITUTION_CREATED` audit event logged).
+- **Success Response**: `201 Created` (`INSTITUTION_CREATED` mandatory audit event logged).
 
 ### `PUT /api/v1/institutions/{id}`
 - **Access**: `@tenancyEvaluator.canUpdateInstitution(authentication, #id)`
   - Admin can update any institution.
   - Institution Officer can update ONLY their own institution and must possess `INSTITUTION_WRITE` permission.
 - **Request Body**: `name`, `category`, `addressLine1`, `addressLine2`, `city`, `district`, `state`, `pincode`, `officialEmail`, `officialPhone`, `alternatePhone`, `websiteUrl`, `establishmentYear`, `latitude`, `longitude`.
-- **Success Response**: `200 OK` (`INSTITUTION_UPDATED` audit event logged).
+- **Success Response**: `200 OK` (`INSTITUTION_UPDATED` mandatory audit event logged).
 
 ### `PATCH /api/v1/institutions/{id}/status`
 - **Access**: `hasAuthority('INSTITUTION_ACTIVATE') or hasRole('ROLE_AICTE_ADMIN')`
-- **Request Body**: `{"active": false, "reason": "Statutory audit pending"}`
-- **Success Response**: `200 OK` (`INSTITUTION_STATUS_CHANGED` audit event logged).
+- **Request Body**: `{"active": false, "reason": "Statutory compliance audit pending"}`
+- **Success Response**: `200 OK` (`INSTITUTION_STATUS_CHANGED` mandatory audit event logged).
 
 ### `GET /api/v1/institutions/{id}/users`
 - **Access**: Authorized institutional access
 - **Success Response**: `200 OK` (List of affiliated officers, roles, and signatory status).
 
 ### `POST /api/v1/institutions/{id}/users`
-- **Access**: Authorized institution manager (`@tenancyEvaluator.canUpdateInstitution`)
+- **Access**: Authorized institution manager (`ROLE_AICTE_ADMIN`)
 - **Request Body**: `{"userId": "UUID", "roleInInstitution": "NODAL_OFFICER", "primaryContact": true}`
-- **Success Response**: `201 Created` (`INSTITUTION_USER_AFFILIATED` audit event logged).
+- **Success Response**: `201 Created` (`INSTITUTION_USER_AFFILIATED` mandatory audit event logged).
 
 ### `DELETE /api/v1/institutions/{id}/users/{userId}`
-- **Access**: Authorized institution manager
-- **Success Response**: `200 OK` (`INSTITUTION_USER_REMOVED` audit event logged).
+- **Access**: Authorized institution manager (`ROLE_AICTE_ADMIN`)
+- **Success Response**: `200 OK` (`INSTITUTION_USER_REMOVED` mandatory audit event logged).
 
 ---
 
-## 6. Administrative User Management API Endpoints (`/api/v1/users`)
+## 7. Administrative User Management API Endpoints (`/api/v1/users`)
 
 ### `GET /api/v1/users`
 - **Access**: `USER_READ` or `ROLE_AICTE_ADMIN`
-- **Parameters**: `page`, `size`, `query`, `active`, `sortBy`, `sortDir`
+- **Parameters**: `page`, `size`, `query`, `active`, `sortBy` (allowed: `createdAt`, `username`, `email`, `fullName`), `sortDir` (`asc`/`desc`)
+- **Scoping**: Central admin sees all accounts; regional officers see users in assigned states; college officers see only users within their college.
 - **Success Response**: `200 OK` (`PageResponse<UserDto>`).
 
 ### `POST /api/v1/users`
 - **Access**: `USER_WRITE` or `ROLE_AICTE_ADMIN`
-- **Request Body**: `username`, `email`, `fullName`, `password`, `roles` (array), `institutionId` (optional).
-- **Security**: Cryptographically hashes password with BCrypt; enforces unique username & email.
-- **Success Response**: `201 Created` (`USER_CREATED` audit event logged).
+- **Request Body**: `username`, `email`, `fullName`, `password`, `roles` (array), `institutionId` (optional UUID).
+- **Validation**: Enforces unique username/email, rejects unknown institution IDs with 404, blocks non-admin escalation to `ROLE_AICTE_ADMIN`.
+- **Success Response**: `201 Created` (`USER_CREATED` mandatory audit event logged).
 
 ### `PUT /api/v1/users/{id}`
 - **Access**: `USER_WRITE` or `ROLE_AICTE_ADMIN`
 - **Request Body**: `fullName`, `email`.
-- **Success Response**: `200 OK`.
+- **Success Response**: `200 OK` (`USER_UPDATED` mandatory audit event logged).
 
 ### `PATCH /api/v1/users/{id}/status`
 - **Access**: `USER_ACTIVATE` or `ROLE_AICTE_ADMIN`
 - **Request Body**: `{"active": false, "reason": "Offboarding"}`
 - **Constraint**: Administrators cannot suspend their own active session account.
-- **Success Response**: `200 OK` (`USER_STATUS_CHANGED` audit event logged).
+- **Success Response**: `200 OK` (`USER_STATUS_CHANGED` mandatory audit event logged).
 
 ### `PUT /api/v1/users/{id}/roles`
 - **Access**: `ROLE_ASSIGN` or `ROLE_AICTE_ADMIN`
 - **Request Body**: `{"roles": ["ROLE_SCRUTINY_OFFICER", "ROLE_EVC_MEMBER"]}`
-- **Success Response**: `200 OK` (`ROLE_ASSIGNED` audit event logged).
+- **Privilege Defense**: Non-admins cannot grant `ROLE_AICTE_ADMIN`.
+- **Success Response**: `200 OK` (`ROLE_ASSIGNED` mandatory audit event logged).
 
 ### `GET /api/v1/users/roles`
 - **Access**: Authenticated
@@ -168,9 +192,12 @@ Every non-2xx response from Spring Boot conforms to RFC 7807:
 
 ---
 
-## 7. Regulatory Audit Log Inspection Endpoints (`/api/v1/audit`)
+## 8. Regulatory Audit Log Inspection Endpoints (`/api/v1/audit`)
 
 ### `GET /api/v1/audit`
-- **Access**: `ROLE_AICTE_ADMIN`, `ROLE_AUDITOR`, or `AUDIT_READ`
-- **Parameters**: `page`, `size`, `principal`, `eventType`, `resourceType`, `correlationId`, `sortBy`, `sortDir`
+- **Access**: `ROLE_AICTE_ADMIN`, `ROLE_AUDITOR`, `ROLE_REGIONAL_OFFICER`, or `AUDIT_READ`
+- **Parameters**: `page`, `size`, `principal`, `eventType`, `resourceType`, `correlationId`, `sortBy` (allowed: `createdAt`, `eventType`, `principal`, `action`, `resourceType`), `sortDir` (`asc`/`desc`)
+- **Scoping**:
+  - `ROLE_AICTE_ADMIN`: Full regulatory audit trail across all events.
+  - Regional / Auditor / Scrutiny: Scoped to authorized jurisdictions and assigned institutions.
 - **Success Response**: `200 OK` (`PageResponse<AuditEventDto>`).

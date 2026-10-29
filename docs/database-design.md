@@ -173,6 +173,41 @@ erDiagram
   - `idx_audit_events_correlation`: `(correlation_id)`
   - `idx_audit_events_created`: `(created_at DESC)`
 
+### Table: `jurisdiction_assignments`
+- `id` (UUID, PK): Unique assignment identifier.
+- `user_id` (UUID, NOT NULL, FK -> `users.id` ON DELETE CASCADE): Regional Officer.
+- `region` (VARCHAR(64), NOT NULL): AICTE region code (`NORTHERN`, `WESTERN`, `SOUTHERN`, etc.).
+- `state` (VARCHAR(100), NOT NULL): State or UT jurisdiction, or `*` for broad jurisdiction.
+- `active` (BOOLEAN, NOT NULL, DEFAULT TRUE): Active validity toggle.
+- `valid_from` / `valid_until` (TIMESTAMPTZ): Period of statutory appointment.
+- `created_at` (TIMESTAMPTZ, NOT NULL): Creation timestamp.
+
+### Table: `case_assignments`
+- `id` (UUID, PK): Record ID.
+- `user_id` (UUID, NOT NULL, FK -> `users.id` ON DELETE CASCADE): Assigned officer or expert reviewer.
+- `institution_id` (UUID, NOT NULL, FK -> `institutions.id` ON DELETE CASCADE): Target institution.
+- `assignment_type` (VARCHAR(64), NOT NULL): Purpose (`SCRUTINY`, `EVC_VISIT`, `COMPLIANCE_MONITORING`, `AUDIT_REVIEW`).
+- `case_reference` (VARCHAR(128)): Formal file number / case identifier.
+- `active` (BOOLEAN, NOT NULL, DEFAULT TRUE): Assignment status.
+- `assigned_at` / `valid_until` (TIMESTAMPTZ): Assignment timeline.
+
+### Table: `committee_appointments`
+- `id` (UUID, PK): Record ID.
+- `user_id` (UUID, NOT NULL, FK -> `users.id` ON DELETE CASCADE): Appointed committee member.
+- `committee_type` (VARCHAR(64), NOT NULL): Statutory committee per APH 2024-27 (`SCRUTINY_CH1`, `SCRUTINY_CH2`, `EVC`, `SHC`, `SAC`, `SCSC`, `EXECUTIVE_COMMITTEE`, `COUNCIL`).
+- `role_in_committee` (VARCHAR(64), NOT NULL): Function (`CHAIRMAN`, `EXPERT_MEMBER`, `ARCHITECT_MEMBER`, `ADVOCATE_MEMBER`, `MEMBER_SECRETARY`).
+- `qualification_details` (VARCHAR(255)): Verified credentials and qualification basis per APH Annexure 16.
+- `active` (BOOLEAN, NOT NULL, DEFAULT TRUE): Appointment validity.
+- `valid_from` / `valid_until` (TIMESTAMPTZ, NOT NULL): Statutory term of appointment.
+
+### Table: `token_revocations`
+- `id` (UUID, PK): Record ID.
+- `token_id` (VARCHAR(128), UNIQUE, NOT NULL): Unique JWT ID (`jti`).
+- `user_id` (UUID, NOT NULL, FK -> `users.id` ON DELETE CASCADE): User whose session was terminated.
+- `revoked_at` (TIMESTAMPTZ, NOT NULL): Timestamp when explicit server-side logout was triggered.
+- `expires_at` (TIMESTAMPTZ, NOT NULL): Natural expiration timestamp of the token for cleanup.
+- `reason` (VARCHAR(255)): Reason for revocation (`User explicit server-side logout`, `Account suspended`, etc.).
+
 ---
 
 ## 4. Flyway Migration Versioning Rules
@@ -182,6 +217,8 @@ Migrations are stored in `backend/src/main/resources/db/migration/` (and profile
 - `V2__dev_seed_data.sql`: Phase 1 synthetic reference seed. Loaded only in `dev` and `test` environments.
 - `V3__phase2_institution_details_and_roles.sql`: Phase 2 DDL adding institutional profile fields, 4 statutory roles (`ROLE_EVC_COORDINATOR`, `ROLE_COMMITTEE_MEMBER`, `ROLE_COMPLIANCE_OFFICER`, `ROLE_AUDITOR`), granular permissions, and role-permission mappings.
 - `V4__phase2_seed_data.sql`: Phase 2 non-production demonstration data (enriching institutions with contact & GIS details, adding Pune and Chennai campuses, and demo user accounts for compliance, auditor, and EVC coordinator).
+- `V5__authorization_governance_and_aph_alignment.sql`: Phase 2.1 DDL introducing `jurisdiction_assignments`, `case_assignments`, `committee_appointments`, and `token_revocations`.
+- `V6__phase2_assignments_seed.sql`: Phase 2.1 non-production seed establishing explicit regional jurisdictions, case assignments, and statutory SCSC committee appointments for demonstration accounts.
 
 **Non-Destructive Evolution Policy**:
 1. Never edit a migration file after it has run in any shared environment.
