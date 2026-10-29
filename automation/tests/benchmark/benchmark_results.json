@@ -1,0 +1,152 @@
+{
+  "timestamp": "2026-10-29T20:06:39Z",
+  "corpus_size": 7,
+  "indra_ocr": {
+    "doc_1_fire_safety_valid.pdf": {
+      "engine": "Indra OCR",
+      "status": "SUCCESS",
+      "page_count": 1,
+      "duration_seconds": 0.0539,
+      "duration_per_page_ms": 53.88,
+      "peak_memory_mb": 482.76,
+      "field_match_rate": 100.0,
+      "avg_confidence": 1.0,
+      "extracted_snippet": "GOVERNMENT OF NCT OF DELHI HEADQUARTERS: DELHI FIRE SERVICE: NEW DELHI Ref No: DFS/MS/2024/SZ/8891 Date of Issue: 15/05/2024 FIRE SAFETY CERTIFICATE / NOC Certified that Delhi Institute of Technology "
+    },
+    "doc_2_building_occupancy.pdf": {
+      "engine": "Indra OCR",
+      "status": "SUCCESS",
+      "page_count": 1,
+      "duration_seconds": 0.0454,
+      "duration_per_page_ms": 45.44,
+      "peak_memory_mb": 493.13,
+      "field_match_rate": 100.0,
+      "avg_confidence": 1.0,
+      "extracted_snippet": "MUNICIPAL CORPORATION OF GREATER MUMBAI BUILDING PROPOSAL DEPARTMENT - SPECIAL CELL BUILDING OCCUPANCY AND COMPLETION CERTIFICATE This is to certify that the institutional building erected by Mumbai C"
+    },
+    "doc_3_land_registration_table.pdf": {
+      "engine": "Indra OCR",
+      "status": "SUCCESS",
+      "page_count": 1,
+      "duration_seconds": 0.0451,
+      "duration_per_page_ms": 45.09,
+      "peak_memory_mb": 493.42,
+      "field_match_rate": 100.0,
+      "avg_confidence": 1.0,
+      "extracted_snippet": "REGISTRATION AND STAMPS DEPARTMENT - GOVERNMENT OF TAMIL NADU LAND REGISTRATION TITLE DEED & SURVEY SCHEDULE Document Registered under Section 17 of Indian Registration Act. Title Deed Number: LND-TN-"
+    },
+    "doc_4_anti_ragging_affidavit.pdf": {
+      "engine": "Indra OCR",
+      "status": "SUCCESS",
+      "page_count": 1,
+      "duration_seconds": 0.0459,
+      "duration_per_page_ms": 45.9,
+      "peak_memory_mb": 493.55,
+      "field_match_rate": 100.0,
+      "avg_confidence": 1.0,
+      "extracted_snippet": "BEFORE THE NOTARY PUBLIC: NEW DELHI STATUTORY UNDERTAKING ON ANTI-RAGGING (AICTE FORMAT-1) I, Dr. Rajesh Sharma, Chairman/Secretary of Delhi Technical Education Trust, solemnly affirm and declare as f"
+    },
+    "doc_5_scanned_skewed_fire_safety.png": {
+      "engine": "Indra OCR",
+      "status": "SUCCESS",
+      "page_count": 1,
+      "duration_seconds": 0.1064,
+      "duration_per_page_ms": 106.35,
+      "peak_memory_mb": 493.55,
+      "field_match_rate": 100.0,
+      "avg_confidence": 0.988,
+      "extracted_snippet": "OFFICE OF THE CHIEF FIRE OFFICER: U.P. FIRE SERVICE FIRE SAFETY COMPLIANCE CERTIFICATE Certificate Number: FS-UP-2024-9901 Issuing Authority: UP Fire Service Lucknow Institution Name: Lucknow Institut"
+    },
+    "doc_6_multipage_board_resolution.pdf": {
+      "engine": "Indra OCR",
+      "status": "SUCCESS",
+      "page_count": 2,
+      "duration_seconds": 0.0774,
+      "duration_per_page_ms": 38.69,
+      "peak_memory_mb": 497.49,
+      "field_match_rate": 100.0,
+      "avg_confidence": 1.0,
+      "extracted_snippet": "GOVERNING BODY RESOLUTION - PAGE 1 OF 2 Resolution Number: GBR-DEL-2024-08 Date of Meeting: 2024-03-25 Institution: Delhi Institute of Technology Resolved that the institution shall apply for AICTE Ex"
+    },
+    "doc_7_corrupt.pdf": {
+      "engine": "Indra OCR",
+      "status": "HANDLED_ERROR",
+      "error_type": "InputError",
+      "duration_seconds": 0.0003
+    }
+  },
+  "tesseract": {
+    "doc_1_fire_safety_valid.pdf": {
+      "engine": "Tesseract 5.5",
+      "status": "SUCCESS",
+      "page_count": 1,
+      "duration_seconds": 0.5477,
+      "duration_per_page_ms": 547.74,
+      "peak_memory_mb": 497.49,
+      "field_match_rate": 100.0,
+      "avg_confidence": 0.85,
+      "extracted_snippet": "GOVERNMENT OF NCT OF DELHI HEADQUARTERS: DELHI FIRE SERVICE: NEW DELHI  Ref No: DFS/MS/2024/S2/8891 Date of Issue: 15/05/2024  FIRE SAFETY CERTIFICATE / NOC  Certified that Delhi Institute of Technolo"
+    },
+    "doc_2_building_occupancy.pdf": {
+      "engine": "Tesseract 5.5",
+      "status": "SUCCESS",
+      "page_count": 1,
+      "duration_seconds": 0.5796,
+      "duration_per_page_ms": 579.56,
+      "peak_memory_mb": 497.49,
+      "field_match_rate": 100.0,
+      "avg_confidence": 0.85,
+      "extracted_snippet": "MUNICIPAL CORPORATION OF GREATER MUMBAI BUILDING PROPOSAL DEPARTMENT - SPECIAL CELL  BUILDING OCCUPANCY AND COMPLETION CERTIFICATE  This is to certify that the institutional building erected by Mumbai"
+    },
+    "doc_3_land_registration_table.pdf": {
+      "engine": "Tesseract 5.5",
+      "status": "SUCCESS",
+      "page_count": 1,
+      "duration_seconds": 0.6075,
+      "duration_per_page_ms": 607.46,
+      "peak_memory_mb": 497.49,
+      "field_match_rate": 100.0,
+      "avg_confidence": 0.85,
+      "extracted_snippet": "REGISTRATION AND STAMPS DEPARTMENT - GOVERNMENT OF TAMIL NADU  LAND REGISTRATION TITLE DEED & SURVEY SCHEDULE  Document Registered under Section 17 of Indian Registration Act. Title Deed Number: LND-T"
+    },
+    "doc_4_anti_ragging_affidavit.pdf": {
+      "engine": "Tesseract 5.5",
+      "status": "SUCCESS",
+      "page_count": 1,
+      "duration_seconds": 0.5794,
+      "duration_per_page_ms": 579.38,
+      "peak_memory_mb": 497.49,
+      "field_match_rate": 100.0,
+      "avg_confidence": 0.85,
+      "extracted_snippet": "BEFORE THE NOTARY PUBLIC: NEW DELHI STATUTORY UNDERTAKING ON ANTI-RAGGING (AICTE FORMAT-1)  1, Dr. Rajesh Sharma, Chairman/Secretary of Delhi Technical Education Trust,  solemnly affirm and declare as"
+    },
+    "doc_5_scanned_skewed_fire_safety.png": {
+      "engine": "Tesseract 5.5",
+      "status": "SUCCESS",
+      "page_count": 1,
+      "duration_seconds": 0.4937,
+      "duration_per_page_ms": 493.66,
+      "peak_memory_mb": 497.49,
+      "field_match_rate": 100.0,
+      "avg_confidence": 0.85,
+      "extracted_snippet": "OFFICE OF THE CHIEF FIRE OFFICER: U.P. FIRE SERVICE  FIRE SAFETY COMPLIANCE CERTIFICATE  Certificate Number: FS-UP-2024-9901  Issuing Authority: UP Fire Service Lucknow  Institution Name: Lucknow Inst"
+    },
+    "doc_6_multipage_board_resolution.pdf": {
+      "engine": "Tesseract 5.5",
+      "status": "SUCCESS",
+      "page_count": 2,
+      "duration_seconds": 0.6151,
+      "duration_per_page_ms": 307.56,
+      "peak_memory_mb": 497.49,
+      "field_match_rate": 100.0,
+      "avg_confidence": 0.85,
+      "extracted_snippet": "GOVERNING BODY RESOLUTION - PAGE 1 OF 2  Resolution Number: GBR-DEL-2024-08 Date of Meeting: 2024-03-25  Institution: Delhi Institute of Technology Resolved that the institution shall apply for AICTE "
+    },
+    "doc_7_corrupt.pdf": {
+      "engine": "Tesseract 5.5",
+      "status": "HANDLED_ERROR",
+      "error_type": "PdfiumError",
+      "duration_seconds": 0.0001
+    }
+  }
+}

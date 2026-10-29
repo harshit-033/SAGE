@@ -77,3 +77,4 @@ pnpm-debug.log*
 logs/
 pg_data/
 aicte_postgres_data/
+backend/data/

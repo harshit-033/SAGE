@@ -1,0 +1,78 @@
+{
+  "doc_1_fire_safety_valid.pdf": {
+    "document_type": "FIRE_SAFETY_CERTIFICATE",
+    "certificate_number": "FS-DEL-2024-8891",
+    "issuing_authority": "Delhi Fire Services",
+    "issue_date": "2024-05-15",
+    "expiry_date": "2027-05-14",
+    "institution_name": "Delhi Institute of Technology",
+    "expected_lines_contain": [
+      "Certificate Number: FS-DEL-2024-8891",
+      "Delhi Fire Services",
+      "2027-05-14"
+    ]
+  },
+  "doc_2_building_occupancy.pdf": {
+    "document_type": "OCCUPANCY_CERTIFICATE",
+    "certificate_number": "BCC-MUM-2023-4120",
+    "issuing_authority": "Municipal Corporation of Greater Mumbai",
+    "built_up_area_sqm": "12500",
+    "issue_date": "2023-08-20",
+    "institution_name": "Mumbai College of Engineering and Technology",
+    "expected_lines_contain": [
+      "BCC-MUM-2023-4120",
+      "12500 Sq. Meters",
+      "Mumbai College of Engineering and Technology"
+    ]
+  },
+  "doc_3_land_registration_table.pdf": {
+    "document_type": "LAND_REGISTRATION",
+    "certificate_number": "LND-TN-2022-7712",
+    "issuing_authority": "Sub-Registrar Chennai Central",
+    "land_area_acres": "5.50",
+    "issue_date": "2022-11-10",
+    "institution_name": "Chennai Institute of Science and Technology",
+    "expected_lines_contain": [
+      "LND-TN-2022-7712",
+      "5.50",
+      "Kancheepuram"
+    ]
+  },
+  "doc_4_anti_ragging_affidavit.pdf": {
+    "document_type": "AFFIDAVIT_FORMAT_1",
+    "certificate_number": "AFF-AR-2024-0042",
+    "deponent_name": "Dr. Rajesh Sharma",
+    "issue_date": "2024-06-10",
+    "institution_name": "Delhi Institute of Technology",
+    "expected_lines_contain": [
+      "AFF-AR-2024-0042",
+      "Dr. Rajesh Sharma",
+      "zero tolerance against ragging"
+    ]
+  },
+  "doc_5_scanned_skewed_fire_safety.png": {
+    "document_type": "FIRE_SAFETY_CERTIFICATE",
+    "certificate_number": "FS-UP-2024-9901",
+    "issuing_authority": "UP Fire Service Lucknow",
+    "issue_date": "2024-01-10",
+    "expiry_date": "2026-01-09",
+    "institution_name": "Lucknow Institute of Advanced Studies",
+    "expected_lines_contain": [
+      "FS-UP-2024-9901",
+      "2026-01-09",
+      "UP Fire Service"
+    ]
+  },
+  "doc_6_multipage_board_resolution.pdf": {
+    "document_type": "BOARD_RESOLUTION",
+    "certificate_number": "GBR-DEL-2024-08",
+    "meeting_date": "2024-03-25",
+    "institution_name": "Delhi Institute of Technology",
+    "pages_count": 2,
+    "expected_lines_contain": [
+      "GBR-DEL-2024-08",
+      "AICTE Nominee",
+      "State Government Nominee"
+    ]
+  }
+}

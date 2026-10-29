@@ -65,6 +65,25 @@ export const Sidebar: React.FC = () => {
             </NavLink>
 
             <NavLink
+              to="/applications"
+              style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.65rem',
+                padding: '0.55rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                color: isActive ? 'var(--gov-blue)' : 'var(--text-secondary)',
+                backgroundColor: isActive ? 'var(--gov-blue-light)' : 'transparent',
+                fontWeight: isActive ? 700 : 500,
+                fontSize: '0.85rem',
+                textDecoration: 'none',
+              })}
+            >
+              <FileCheck size={16} />
+              <span>Applications &amp; Scrutiny</span>
+            </NavLink>
+
+            <NavLink
               to="/institutions"
               style={({ isActive }) => ({
                 display: 'flex',
@@ -188,17 +207,17 @@ export const Sidebar: React.FC = () => {
                 justifyContent: 'space-between',
                 padding: '0.45rem 0.5rem',
                 fontSize: '0.78rem',
-                backgroundColor: 'var(--status-info-bg)',
-                color: 'var(--status-info-text)',
+                backgroundColor: 'var(--status-success-bg)',
+                color: 'var(--status-success-text)',
                 borderRadius: 'var(--radius-xs)',
-                border: '1px solid var(--status-info-border)',
-                fontWeight: 700,
+                border: '1px solid var(--status-success-border)',
+                fontWeight: 600,
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                 <ShieldCheck size={13} /> Phase 2: Tenancy
               </span>
-              <span>ACTIVE</span>
+              <span>VERIFIED</span>
             </div>
 
             <div
@@ -208,15 +227,17 @@ export const Sidebar: React.FC = () => {
                 justifyContent: 'space-between',
                 padding: '0.45rem 0.5rem',
                 fontSize: '0.78rem',
-                color: 'var(--text-muted)',
+                backgroundColor: 'var(--status-info-bg)',
+                color: 'var(--status-info-text)',
                 borderRadius: 'var(--radius-xs)',
-                border: '1px solid var(--border-light)',
+                border: '1px solid var(--status-info-border)',
+                fontWeight: 700,
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <FileCheck size={13} /> Phase 3: Scrutiny &amp; EVC
+                <FileCheck size={13} /> Phase 3: Scrutiny &amp; OCR
               </span>
-              <span>PENDING</span>
+              <span>VERIFIED</span>
             </div>
           </div>
         </div>

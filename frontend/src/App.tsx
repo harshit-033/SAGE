@@ -10,6 +10,8 @@ import { InstitutionProfile } from './pages/InstitutionProfile'
 import { UserManagement } from './pages/UserManagement'
 import { AuditLogViewer } from './pages/AuditLogViewer'
 import { SystemHealth } from './pages/SystemHealth'
+import { Applications } from './pages/Applications'
+import { ApplicationDetails } from './pages/ApplicationDetails'
 import { AccessDenied } from './pages/AccessDenied'
 import { NotFound } from './pages/NotFound'
 
@@ -70,6 +72,8 @@ export const AppContent: React.FC = () => {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/applications" element={<Applications />} />
+        <Route path="/applications/:id" element={<ApplicationDetails />} />
         <Route path="/institutions" element={<Institutions />} />
         <Route path="/institutions/:id" element={<InstitutionProfile />} />
 

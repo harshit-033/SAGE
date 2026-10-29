@@ -35,7 +35,7 @@ sage:
       secret: ${JWT_SECRET:}
       expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 hours
     internal:
-      service-token: ${INTERNAL_SERVICE_TOKEN:}
+      service-token: ${INTERNAL_SERVICE_TOKEN:sage_internal_dev_service_secret_token_12345}
   automation:
     service-url: ${AUTOMATION_SERVICE_URL:http://localhost:8000}
 
