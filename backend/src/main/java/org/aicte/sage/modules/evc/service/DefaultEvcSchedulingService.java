@@ -388,15 +388,7 @@ public class DefaultEvcSchedulingService implements EvcSchedulingService {
         boolean isAdmin = principal.hasRole("ROLE_AICTE_ADMIN") || principal.hasRole("ROLE_EVC_COORDINATOR");
 
         return inspections.stream()
-                .filter(i -> {
-                    if (isAdmin) return true;
-                    try {
-                        authService.checkAccessToInstitution(principal, i.getInstitution().getId(), "EVC_LIST");
-                        return true;
-                    } catch (AccessDeniedException ex) {
-                        return false;
-                    }
-                })
+                .filter(i -> isAdmin || authService.canAccessInstitution(principal, i.getInstitution().getId()))
                 .map(i -> EvcInspectionDto.fromEntity(i, loadCommitteeDto(i)))
                 .toList();
     }

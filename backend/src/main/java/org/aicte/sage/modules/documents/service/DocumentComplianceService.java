@@ -26,9 +26,11 @@ import org.aicte.sage.modules.scrutiny.model.ScrutinyFinding;
 import org.aicte.sage.modules.scrutiny.repository.ScrutinyFindingRepository;
 import org.aicte.sage.modules.users.entity.User;
 import org.aicte.sage.modules.users.repository.UserRepository;
+import org.aicte.sage.modules.governance.repository.JurisdictionAssignmentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -57,6 +59,7 @@ public class DocumentComplianceService {
     private final AuthoritativeAuthorizationService authService;
     private final AuditService auditService;
     private final AlertService alertService;
+    private final JurisdictionAssignmentRepository jurisdictionRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final Set<String> ALLOWED_DOC_SORT_FIELDS = Set.of("createdAt", "updatedAt", "originalFilename", "expiryDate", "documentCategory");
@@ -74,7 +77,8 @@ public class DocumentComplianceService {
             DocumentOcrClient ocrClient,
             AuthoritativeAuthorizationService authService,
             AuditService auditService,
-            AlertService alertService
+            AlertService alertService,
+            JurisdictionAssignmentRepository jurisdictionRepository
     ) {
         this.documentRepository = documentRepository;
         this.correctiveActionRepository = correctiveActionRepository;
@@ -88,6 +92,7 @@ public class DocumentComplianceService {
         this.authService = authService;
         this.auditService = auditService;
         this.alertService = alertService;
+        this.jurisdictionRepository = jurisdictionRepository;
     }
 
     // =========================================================================
@@ -106,23 +111,140 @@ public class DocumentComplianceService {
             int size,
             UserPrincipal principal
     ) {
-        UUID effectiveInstId = requestedInstitutionId;
-        if (principal.hasRole("ROLE_INSTITUTION_OFFICER") && !principal.hasRole("ROLE_AICTE_ADMIN") && !principal.hasRole("ROLE_REGIONAL_OFFICER")) {
-            effectiveInstId = principal.getAuthorizedInstitutionIds().stream().findFirst().orElse(null);
-        } else if (effectiveInstId != null) {
-            authService.checkAccessToInstitution(principal, effectiveInstId, "LIST_DOCUMENTS");
-        }
-
         Pageable pageable = PaginationUtils.validateAndBuildPageable(page, size, "createdAt", "desc", ALLOWED_DOC_SORT_FIELDS, "createdAt");
-        Page<Document> docPage = documentRepository.searchDocuments(
-                effectiveInstId,
-                applicationId,
-                category,
-                verificationStatus,
-                complianceStatus,
-                search != null && !search.isBlank() ? search.trim() : null,
-                pageable
-        );
+        String cleanSearch = search != null && !search.isBlank() ? search.trim() : null;
+
+        Page<Document> docPage;
+
+        if (principal.hasRole("ROLE_AICTE_ADMIN")) {
+            docPage = documentRepository.searchDocuments(
+                    requestedInstitutionId,
+                    applicationId,
+                    category,
+                    verificationStatus,
+                    complianceStatus,
+                    cleanSearch,
+                    pageable
+            );
+        } else if (principal.hasRole("ROLE_INSTITUTION_OFFICER")) {
+            Set<UUID> authorizedInstIds = principal.getAuthorizedInstitutionIds();
+            if (authorizedInstIds == null || authorizedInstIds.isEmpty()) {
+                // FAIL-CLOSED: No assigned institutions -> Return empty page immediately
+                return PageResponse.from(new PageImpl<>(Collections.emptyList(), pageable, 0), Collections.emptyList());
+            }
+
+            if (requestedInstitutionId != null) {
+                // Explicit institution requested: verify ownership
+                authService.checkAccessToInstitution(principal, requestedInstitutionId, "LIST_DOCUMENTS");
+                docPage = documentRepository.searchDocuments(
+                        requestedInstitutionId,
+                        applicationId,
+                        category,
+                        verificationStatus,
+                        complianceStatus,
+                        cleanSearch,
+                        pageable
+                );
+            } else if (authorizedInstIds.size() == 1) {
+                docPage = documentRepository.searchDocuments(
+                        authorizedInstIds.iterator().next(),
+                        applicationId,
+                        category,
+                        verificationStatus,
+                        complianceStatus,
+                        cleanSearch,
+                        pageable
+                );
+            } else {
+                docPage = documentRepository.searchDocumentsByInstitutionIds(
+                        authorizedInstIds,
+                        applicationId,
+                        category,
+                        verificationStatus,
+                        complianceStatus,
+                        cleanSearch,
+                        pageable
+                );
+            }
+        } else if (principal.hasRole("ROLE_REGIONAL_OFFICER")) {
+            List<String> states = jurisdictionRepository.findActiveStatesByUserId(principal.getId());
+            if (states.contains("*")) {
+                docPage = documentRepository.searchDocuments(
+                        requestedInstitutionId,
+                        applicationId,
+                        category,
+                        verificationStatus,
+                        complianceStatus,
+                        cleanSearch,
+                        pageable
+                );
+            } else if (states.isEmpty()) {
+                // FAIL-CLOSED: No assigned jurisdiction -> empty page
+                return PageResponse.from(new PageImpl<>(Collections.emptyList(), pageable, 0), Collections.emptyList());
+            } else {
+                if (requestedInstitutionId != null) {
+                    authService.checkAccessToInstitution(principal, requestedInstitutionId, "LIST_DOCUMENTS");
+                    docPage = documentRepository.searchDocuments(
+                            requestedInstitutionId,
+                            applicationId,
+                            category,
+                            verificationStatus,
+                            complianceStatus,
+                            cleanSearch,
+                            pageable
+                    );
+                } else {
+                    List<String> lowerStates = states.stream().map(String::toLowerCase).toList();
+                    docPage = documentRepository.searchDocumentsByStates(
+                            lowerStates,
+                            null,
+                            applicationId,
+                            category,
+                            verificationStatus,
+                            complianceStatus,
+                            cleanSearch,
+                            pageable
+                    );
+                }
+            }
+        } else {
+            // Auditor, Compliance Officer, EVC Coordinator
+            if (requestedInstitutionId != null) {
+                authService.checkAccessToInstitution(principal, requestedInstitutionId, "LIST_DOCUMENTS");
+                docPage = documentRepository.searchDocuments(
+                        requestedInstitutionId,
+                        applicationId,
+                        category,
+                        verificationStatus,
+                        complianceStatus,
+                        cleanSearch,
+                        pageable
+                );
+            } else {
+                Set<UUID> assignedIds = principal.getAuthorizedInstitutionIds();
+                if (assignedIds != null && !assignedIds.isEmpty()) {
+                    docPage = documentRepository.searchDocumentsByInstitutionIds(
+                            assignedIds,
+                            applicationId,
+                            category,
+                            verificationStatus,
+                            complianceStatus,
+                            cleanSearch,
+                            pageable
+                    );
+                } else {
+                    docPage = documentRepository.searchDocuments(
+                            null,
+                            applicationId,
+                            category,
+                            verificationStatus,
+                            complianceStatus,
+                            cleanSearch,
+                            pageable
+                    );
+                }
+            }
+        }
 
         List<DocumentDto> dtos = docPage.getContent().stream().map(this::toEnrichedDto).toList();
         return PageResponse.from(docPage, dtos);

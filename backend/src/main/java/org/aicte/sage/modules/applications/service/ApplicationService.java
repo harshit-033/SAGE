@@ -29,16 +29,21 @@ import org.aicte.sage.modules.workflow.dto.WorkflowTransitionDto;
 import org.aicte.sage.modules.workflow.model.WorkflowDefinition;
 import org.aicte.sage.modules.workflow.repository.WorkflowDefinitionRepository;
 import org.aicte.sage.modules.workflow.service.WorkflowEngineService;
+import org.aicte.sage.modules.governance.repository.JurisdictionAssignmentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -56,6 +61,7 @@ public class ApplicationService {
     private final ApplicationBranchDetailsRepository branchDetailsRepository;
     private final AuthoritativeAuthorizationService authService;
     private final AuditService auditService;
+    private final JurisdictionAssignmentRepository jurisdictionRepository;
     private final SecureRandom random = new SecureRandom();
 
     public ApplicationService(
@@ -67,7 +73,8 @@ public class ApplicationService {
             ApplicationCourseDetailsRepository courseDetailsRepository,
             ApplicationBranchDetailsRepository branchDetailsRepository,
             AuthoritativeAuthorizationService authService,
-            AuditService auditService
+            AuditService auditService,
+            JurisdictionAssignmentRepository jurisdictionRepository
     ) {
         this.applicationRepository = applicationRepository;
         this.institutionRepository = institutionRepository;
@@ -78,6 +85,7 @@ public class ApplicationService {
         this.branchDetailsRepository = branchDetailsRepository;
         this.authService = authService;
         this.auditService = auditService;
+        this.jurisdictionRepository = jurisdictionRepository;
     }
 
     public ApplicationDto createApplication(CreateApplicationRequest req, UserPrincipal principal) {
@@ -271,13 +279,57 @@ public class ApplicationService {
     ) {
         Pageable pageable = PaginationUtils.validateAndBuildPageable(page, size, "createdAt", "desc", ALLOWED_SORT_FIELDS, "createdAt");
 
-        UUID effectiveInstId = requestedInstitutionId;
-        if (principal.hasRole("ROLE_INSTITUTION_OFFICER") && !principal.hasRole("ROLE_AICTE_ADMIN") && !principal.hasRole("ROLE_REGIONAL_OFFICER")) {
-            // Force own institution
-            effectiveInstId = principal.getAuthorizedInstitutionIds().stream().findFirst().orElse(null);
+        Page<Application> appPage;
+
+        if (principal.hasRole("ROLE_AICTE_ADMIN")) {
+            appPage = applicationRepository.searchApplications(requestedInstitutionId, state, category, pageable);
+        } else if (principal.hasRole("ROLE_INSTITUTION_OFFICER")) {
+            Set<UUID> authorizedInstIds = principal.getAuthorizedInstitutionIds();
+            if (authorizedInstIds == null || authorizedInstIds.isEmpty()) {
+                // FAIL-CLOSED: No assigned institutions -> Return empty page immediately
+                return PageResponse.from(new PageImpl<>(Collections.emptyList(), pageable, 0), Collections.emptyList());
+            }
+
+            if (requestedInstitutionId != null) {
+                // Explicit institution requested: verify ownership
+                authService.checkAccessToInstitution(principal, requestedInstitutionId, "LIST_APPLICATIONS");
+                appPage = applicationRepository.searchApplications(requestedInstitutionId, state, category, pageable);
+            } else if (authorizedInstIds.size() == 1) {
+                appPage = applicationRepository.searchApplications(authorizedInstIds.iterator().next(), state, category, pageable);
+            } else {
+                appPage = applicationRepository.searchApplicationsByInstitutionIds(authorizedInstIds, state, category, pageable);
+            }
+        } else if (principal.hasRole("ROLE_REGIONAL_OFFICER")) {
+            List<String> states = jurisdictionRepository.findActiveStatesByUserId(principal.getId());
+            if (states.contains("*")) {
+                appPage = applicationRepository.searchApplications(requestedInstitutionId, state, category, pageable);
+            } else if (states.isEmpty()) {
+                // FAIL-CLOSED: No assigned jurisdiction -> empty page
+                return PageResponse.from(new PageImpl<>(Collections.emptyList(), pageable, 0), Collections.emptyList());
+            } else {
+                if (requestedInstitutionId != null) {
+                    authService.checkAccessToInstitution(principal, requestedInstitutionId, "LIST_APPLICATIONS");
+                    appPage = applicationRepository.searchApplications(requestedInstitutionId, state, category, pageable);
+                } else {
+                    List<String> lowerStates = states.stream().map(String::toLowerCase).toList();
+                    appPage = applicationRepository.searchApplicationsByStates(lowerStates, null, state, category, pageable);
+                }
+            }
+        } else {
+            // Evaluator, Auditor, Compliance Officer, EVC Coordinator
+            if (requestedInstitutionId != null) {
+                authService.checkAccessToInstitution(principal, requestedInstitutionId, "LIST_APPLICATIONS");
+                appPage = applicationRepository.searchApplications(requestedInstitutionId, state, category, pageable);
+            } else {
+                Set<UUID> assignedIds = principal.getAuthorizedInstitutionIds();
+                if (assignedIds != null && !assignedIds.isEmpty()) {
+                    appPage = applicationRepository.searchApplicationsByInstitutionIds(assignedIds, state, category, pageable);
+                } else {
+                    appPage = applicationRepository.searchApplications(null, state, category, pageable);
+                }
+            }
         }
 
-        Page<Application> appPage = applicationRepository.searchApplications(effectiveInstId, state, category, pageable);
         return PageResponse.from(appPage, appPage.getContent().stream().map(ApplicationDto::fromEntity).toList());
     }
 

@@ -28,6 +28,7 @@ import {
   GitBranch,
   Edit3,
   Save,
+  XCircle,
 } from 'lucide-react'
 
 export const ApplicationDetails: React.FC = () => {
@@ -35,7 +36,7 @@ export const ApplicationDetails: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { hasRole, isAdmin } = useAuth()
-  const { showSuccess, handleApiError } = useMessage()
+  const { showSuccess, handleApiError, showConfirmation } = useMessage()
 
   const [activeTab, setActiveTab] = useState<'specification' | 'documents' | 'scrutiny' | 'workflow'>('specification')
 
@@ -242,7 +243,7 @@ export const ApplicationDetails: React.FC = () => {
     { label: 'Final Decision', state: 'APPROVED' },
   ]
 
-  const isOfficerOrAdmin = isAdmin || hasRole('ROLE_REGIONAL_OFFICER') || hasRole('ROLE_COMMITTEE_MEMBER')
+  const isOfficerOrAdmin = isAdmin || hasRole('ROLE_REGIONAL_OFFICER') || hasRole('ROLE_COMMITTEE_MEMBER') || hasRole('ROLE_EVC_COORDINATOR')
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -311,6 +312,57 @@ export const ApplicationDetails: React.FC = () => {
               >
                 <Send size={15} />
                 <span>Submit Application</span>
+              </button>
+            )}
+
+            {application.currentState === 'DEFICIENT' && (hasRole('ROLE_INSTITUTION_OFFICER') || isAdmin) && (
+              <button
+                onClick={() => transitionMutation.mutate({ state: 'RESUBMITTED', reason: 'Deficiencies rectified and compliance documents updated.' })}
+                disabled={transitionMutation.isPending}
+                className="btn btn-primary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  backgroundColor: 'var(--gov-green)',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                }}
+              >
+                <Send size={15} />
+                <span>{transitionMutation.isPending ? 'Resubmitting...' : 'Resubmit Rectified Application'}</span>
+              </button>
+            )}
+
+            {(application.currentState === 'DRAFT' || application.currentState === 'SUBMITTED' || application.currentState === 'DEFICIENT') && (hasRole('ROLE_INSTITUTION_OFFICER') || isAdmin) && (
+              <button
+                onClick={async () => {
+                  const confirmed = await showConfirmation({
+                    title: 'Withdraw Application',
+                    message: 'Are you sure you want to withdraw this application?',
+                    description: 'This will terminate the approval process and mark the application as withdrawn per statutory norms.',
+                    confirmVariant: 'danger',
+                    confirmText: 'Withdraw',
+                  })
+                  if (confirmed) {
+                    transitionMutation.mutate({ state: 'WITHDRAWN', reason: 'Application voluntarily withdrawn by applicant.' })
+                  }
+                }}
+                disabled={transitionMutation.isPending}
+                className="btn btn-outline"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  borderColor: 'var(--status-danger-border)',
+                  color: 'var(--status-danger-text)',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                }}
+              >
+                <XCircle size={15} />
+                <span>Withdraw</span>
               </button>
             )}
 
@@ -1477,12 +1529,16 @@ export const ApplicationDetails: React.FC = () => {
               className="form-control"
             >
               <option value="UNDER_SCRUTINY">UNDER_SCRUTINY (Initiate Scrutiny)</option>
+              <option value="DEFICIENT">DEFICIENT (Deficiencies Flagged)</option>
               <option value="SCRUTINY_PASSED">SCRUTINY_PASSED (Scrutiny Verified)</option>
               <option value="EVC_SCHEDULED">EVC_SCHEDULED (Schedule Expert Visit)</option>
               <option value="EVC_CONDUCTED">EVC_CONDUCTED (Inspection Complete)</option>
+              <option value="SHC_SCHEDULED">SHC_SCHEDULED (Schedule Hearing)</option>
               <option value="SHC_REVIEW">SHC_REVIEW (Standing Hearing Committee)</option>
+              <option value="SAC_REVIEW">SAC_REVIEW (Standing Appellate Committee)</option>
               <option value="APPROVED">APPROVED (Grant AICTE Approval)</option>
               <option value="REJECTED">REJECTED (Statutory Refusal)</option>
+              <option value="WITHDRAWN">WITHDRAWN (Statutory Withdrawal)</option>
             </select>
           </div>
 

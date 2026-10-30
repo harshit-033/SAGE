@@ -136,7 +136,7 @@ public class WorkflowEngineService {
             if (from == ApplicationState.DEFICIENT && to == ApplicationState.RESUBMITTED) {
                 return; // Valid resubmission after correction
             }
-            if ((from == ApplicationState.DRAFT || from == ApplicationState.SUBMITTED) && to == ApplicationState.WITHDRAWN) {
+            if ((from == ApplicationState.DRAFT || from == ApplicationState.SUBMITTED || from == ApplicationState.DEFICIENT) && to == ApplicationState.WITHDRAWN) {
                 return; // Valid withdrawal
             }
             throw new AccessDeniedException("Institution officers cannot transition application from " + from + " to " + to);

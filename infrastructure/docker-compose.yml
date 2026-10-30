@@ -86,8 +86,8 @@ services:
     container_name: sage_frontend
     restart: unless-stopped
     environment:
-      VITE_API_BASE_URL: http://backend:8080
-      VITE_AUTOMATION_BASE_URL: http://automation:8000
+      # Browser calls relative /api/ endpoints reverse-proxied by Nginx
+      VITE_API_BASE_URL: ""
     ports:
       - "5173:80"
     depends_on:

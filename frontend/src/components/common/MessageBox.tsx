@@ -16,9 +16,17 @@ export const MessageBox: React.FC = () => {
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
           if (activeMessage.type === 'CONFIRMATION') {
-            activeMessage.onCancel ? activeMessage.onCancel() : closeMessage()
+            if (activeMessage.onCancel) {
+              activeMessage.onCancel()
+            } else {
+              closeMessage()
+            }
           } else {
-            activeMessage.onOk ? activeMessage.onOk() : closeMessage()
+            if (activeMessage.onOk) {
+              activeMessage.onOk()
+            } else {
+              closeMessage()
+            }
           }
         }
       }

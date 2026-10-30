@@ -87,7 +87,7 @@ const mockExperts: ExpertDto[] = [
   },
 ]
 
-function renderWithProviders(ui: React.ReactElement, authOverrides: any = {}) {
+function renderWithProviders(ui: React.ReactElement, authOverrides: Record<string, unknown> = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -111,7 +111,7 @@ function renderWithProviders(ui: React.ReactElement, authOverrides: any = {}) {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={authValue as any}>
+      <AuthContext.Provider value={authValue as unknown as React.ComponentProps<typeof AuthContext.Provider>['value']}>
         <MemoryRouter>{ui}</MemoryRouter>
       </AuthContext.Provider>
     </QueryClientProvider>

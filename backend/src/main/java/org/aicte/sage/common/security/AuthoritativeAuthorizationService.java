@@ -81,6 +81,11 @@ public class AuthoritativeAuthorizationService {
             }
         }
 
+        // 5. EVC Coordinator has statutory authority for inspection management & scheduling
+        if (principal.hasRole("ROLE_EVC_COORDINATOR")) {
+            return true;
+        }
+
         return false;
     }
 

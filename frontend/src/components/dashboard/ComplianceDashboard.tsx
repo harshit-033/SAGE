@@ -50,7 +50,7 @@ export const ComplianceDashboard: React.FC = () => {
       const run = await complianceApi.triggerScan()
       setScanMessage(`Scan complete: Checked ${run.institutionsChecked} institutions, generated ${run.findingsGenerated} findings.`)
       await loadData()
-    } catch (err) {
+    } catch {
       setScanMessage('Failed to trigger automated surveillance sweep.')
     } finally {
       setScanning(false)

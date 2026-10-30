@@ -41,4 +41,26 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
             @Param("category") ApplicationCategory category,
             Pageable pageable
     );
+
+    @Query("SELECT a FROM Application a WHERE a.institution.id IN :institutionIds " +
+           "AND (:state IS NULL OR a.currentState = :state) " +
+           "AND (:category IS NULL OR a.category = :category)")
+    Page<Application> searchApplicationsByInstitutionIds(
+            @Param("institutionIds") java.util.Collection<UUID> institutionIds,
+            @Param("state") ApplicationState state,
+            @Param("category") ApplicationCategory category,
+            Pageable pageable
+    );
+
+    @Query("SELECT a FROM Application a WHERE LOWER(a.institution.state) IN :states " +
+           "AND (:institutionId IS NULL OR a.institution.id = :institutionId) " +
+           "AND (:state IS NULL OR a.currentState = :state) " +
+           "AND (:category IS NULL OR a.category = :category)")
+    Page<Application> searchApplicationsByStates(
+            @Param("states") java.util.Collection<String> states,
+            @Param("institutionId") UUID institutionId,
+            @Param("state") ApplicationState state,
+            @Param("category") ApplicationCategory category,
+            Pageable pageable
+    );
 }

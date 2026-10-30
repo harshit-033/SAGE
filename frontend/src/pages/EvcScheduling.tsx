@@ -80,7 +80,7 @@ export const EvcScheduling: React.FC = () => {
         setSelectedInspectionIds([])
       }
     },
-    onError: (err: any) => {
+    onError: (err: Error & { problem?: { detail?: string } }) => {
       setSchedulingError(err?.problem?.detail || err.message || 'Scheduling execution failed')
       setSolverResult(null)
     },

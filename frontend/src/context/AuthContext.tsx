@@ -1,20 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { useContext, useState, useEffect } from 'react'
 import { authApi, type UserProfile } from '../api/authApi'
+import { AuthContext, type AuthContextType } from './authContextDef'
 
-interface AuthContextType {
-  user: UserProfile | null
-  token: string | null
-  isLoading: boolean
-  login: (username: string, password: string) => Promise<void>
-  logout: () => Promise<void>
-  hasRole: (role: string) => boolean
-  hasAnyRole: (roles: string[]) => boolean
-  hasPermission: (permission: string) => boolean
-  isAdmin: boolean
-  isInstitutionOfficer: boolean
-}
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined)
+export { AuthContext, type AuthContextType }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null)

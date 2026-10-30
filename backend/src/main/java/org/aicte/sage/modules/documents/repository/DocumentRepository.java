@@ -44,6 +44,44 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
             Pageable pageable
     );
 
+    @Query("SELECT d FROM Document d WHERE " +
+           "d.institution.id IN :institutionIds AND " +
+           "(:applicationId IS NULL OR d.application.id = :applicationId) AND " +
+           "(:category IS NULL OR d.documentCategory = :category) AND " +
+           "(:verificationStatus IS NULL OR d.verificationStatus = :verificationStatus) AND " +
+           "(:complianceStatus IS NULL OR d.complianceStatus = :complianceStatus) AND " +
+           "(:search IS NULL OR LOWER(d.originalFilename) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(d.documentName) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "ORDER BY d.createdAt DESC")
+    Page<Document> searchDocumentsByInstitutionIds(
+            @Param("institutionIds") java.util.Collection<UUID> institutionIds,
+            @Param("applicationId") UUID applicationId,
+            @Param("category") DocumentCategory category,
+            @Param("verificationStatus") DocumentVerificationStatus verificationStatus,
+            @Param("complianceStatus") DocumentComplianceStatus complianceStatus,
+            @Param("search") String search,
+            Pageable pageable
+    );
+
+    @Query("SELECT d FROM Document d WHERE " +
+           "LOWER(d.institution.state) IN :states AND " +
+           "(:institutionId IS NULL OR d.institution.id = :institutionId) AND " +
+           "(:applicationId IS NULL OR d.application.id = :applicationId) AND " +
+           "(:category IS NULL OR d.documentCategory = :category) AND " +
+           "(:verificationStatus IS NULL OR d.verificationStatus = :verificationStatus) AND " +
+           "(:complianceStatus IS NULL OR d.complianceStatus = :complianceStatus) AND " +
+           "(:search IS NULL OR LOWER(d.originalFilename) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(d.documentName) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "ORDER BY d.createdAt DESC")
+    Page<Document> searchDocumentsByStates(
+            @Param("states") java.util.Collection<String> states,
+            @Param("institutionId") UUID institutionId,
+            @Param("applicationId") UUID applicationId,
+            @Param("category") DocumentCategory category,
+            @Param("verificationStatus") DocumentVerificationStatus verificationStatus,
+            @Param("complianceStatus") DocumentComplianceStatus complianceStatus,
+            @Param("search") String search,
+            Pageable pageable
+    );
+
     long countByInstitutionId(UUID institutionId);
     long countByInstitutionIdAndVerificationStatus(UUID institutionId, DocumentVerificationStatus verificationStatus);
     long countByInstitutionIdAndComplianceStatus(UUID institutionId, DocumentComplianceStatus complianceStatus);

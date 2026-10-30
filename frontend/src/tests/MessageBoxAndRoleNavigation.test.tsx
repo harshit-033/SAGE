@@ -2,7 +2,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MessageProvider, useMessage, sanitizeApiError, sanitizeTechnicalMessage } from '../context/MessageContext'
+import { MessageProvider, useMessage } from '../context/MessageContext'
+import { sanitizeApiError, sanitizeTechnicalMessage } from '../utils/messageSanitizer'
 import { MessageBox } from '../components/common/MessageBox'
 import { Sidebar } from '../components/layout/Sidebar'
 import { Navbar } from '../components/layout/Navbar'
@@ -360,7 +361,7 @@ describe('Brand Logo & Full Form Presentation', () => {
     }
 
     render(
-      <AuthContext.Provider value={mockAuthContext as any}>
+      <AuthContext.Provider value={mockAuthContext as unknown as React.ComponentProps<typeof AuthContext.Provider>['value']}>
         <MemoryRouter>
           <Navbar />
         </MemoryRouter>
@@ -387,7 +388,7 @@ describe('Brand Logo & Full Form Presentation', () => {
     }
 
     render(
-      <AuthContext.Provider value={mockAuthContext as any}>
+      <AuthContext.Provider value={mockAuthContext as unknown as React.ComponentProps<typeof AuthContext.Provider>['value']}>
         <MemoryRouter>
           <Login />
         </MemoryRouter>
