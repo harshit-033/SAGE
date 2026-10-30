@@ -1,0 +1,46 @@
+{
+    # Global options
+    email {$ACME_EMAIL:admin@example.com}
+    admin off
+    grace_period 10s
+}
+
+{$DOMAIN_NAME:localhost} {
+    # Max request body size (allow up to 50MB for regulatory PDF/document uploads)
+    request_body {
+        max_size 50MB
+    }
+
+    # Compression
+    encode zstd gzip
+
+    # Modern Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    # Reverse proxy to Nginx frontend (which routes static SPA assets, /api/ and /automation-api/)
+    reverse_proxy frontend:80 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        transport http {
+            dial_timeout 10s
+            response_header_timeout 180s
+        }
+    }
+
+    # Access logging
+    log {
+        output stdout
+        format console
+        level INFO
+    }
+}

@@ -5,30 +5,30 @@
   <br/>
   <strong>System for Approval Governance and Evaluation (SAGE)</strong>
   <br/>
-  <em>Official AICTE Statutory Regulatory Platform</em>
+  <em>Independent Prototype developed for SIH 2026 Problem Statement 26262</em>
 </p>
 
 > **SIH 2026 Problem Statement 26262**:
 > *“Integrated AICTE Approval Workflow Automation, Compliance Monitoring and Alert Management System.”*  
 > **Primary Regulatory Source**: AICTE Approval Process Handbook (APH) 2024–25 to 2026–27
 
-[![Build & Test Status](https://img.shields.io/badge/tests-140%2F140%20passing%20%7C%2015%2F15%20e2e-brightgreen.svg)]()
+[![Build & Test Status](https://img.shields.io/badge/tests-175%2F175%20passing%20%7C%2015%2F15%20e2e-brightgreen.svg)]()
 [![Backend](https://img.shields.io/badge/backend-Spring%20Boot%203.4%20%7C%20Java%2021-blue.svg)]()
 [![EVC Engine](https://img.shields.io/badge/evc%20solver-Google%20OR--Tools%20CP--SAT%209.11-darkblue.svg)]()
 [![Automation](https://img.shields.io/badge/automation-FastAPI%20%7C%20Indra%20OCR%20%7C%20Python%203.14-teal.svg)]()
 [![Frontend](https://img.shields.io/badge/frontend-React%2019%20%7C%20TypeScript%20%7C%20Vite-purple.svg)]()
-[![Design System](https://img.shields.io/badge/design-Official%20AICTE%20Gov%20System-orange.svg)]()
+[![Design System](https://img.shields.io/badge/design-AICTE%20Inspired%20Gov%20System-orange.svg)]()
 
-> **Final Project Report & Audit**: See [docs/SAGE-FINAL-PROJECT-REPORT.md](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/SAGE-FINAL-PROJECT-REPORT.md), [docs/new-application-workflows-implementation-report.md](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/new-application-workflows-implementation-report.md), and [docs/document-compliance-tracking-implementation-report.md](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/document-compliance-tracking-implementation-report.md) for complete audits, architectural proofs, and verification matrices.
+> **Final Project Report & Audit**: See [docs/SAGE-FINAL-PROJECT-REPORT.md](docs/SAGE-FINAL-PROJECT-REPORT.md), [docs/DEPLOYMENT_IMPLEMENTATION_REPORT.md](docs/DEPLOYMENT_IMPLEMENTATION_REPORT.md), and [docs/AWS_EC2_DEPLOYMENT.md](docs/AWS_EC2_DEPLOYMENT.md) for complete audits, architectural proofs, deployment runbooks, and verification matrices.
 
 ---
 
 ## 1. Project Overview
 
-**SAGE** is a multi-tenant regulatory automation platform engineered for the All India Council for Technical Education (AICTE). It modernizes statutory approval workflows, document scrutiny, Expert Visit Committee (EVC) panel allocations, continuous compliance monitoring, and alert escalation.
+**SAGE** is an independent multi-tenant regulatory automation prototype engineered for Smart India Hackathon (SIH) 2026 Problem Statement 26262. It modernizes statutory approval workflows, document scrutiny, Expert Visit Committee (EVC) panel allocations, continuous compliance monitoring, and alert escalation based on the AICTE Approval Process Handbook (APH).
 
 SAGE incorporates:
-- **Core Authority Backend**: Spring Boot 3.4 on Java 21 LTS with Spring Security, Spring Data JPA, PostgreSQL 16+, and Flyway schema migrations (V1 through V15).
+- **Core Authority Backend**: Spring Boot 3.4 on Java 21 LTS with Spring Security, Spring Data JPA, PostgreSQL 16+, and Flyway schema migrations (V1 through V18).
 - **Integrated EVC Scheduling Engine**: Google OR-Tools CP-SAT 9.11.4210 constraint solver generating conflict-free inspection committees (3 distinct active experts, consecutive 2-day duration, Sunday exclusion, expert availability constraints, atomic persistence).
 - **Application Workflow Engine**: Independent application lifecycle modeling, versioned workflow state machines (`WF_NEW_INSTITUTION`, `WF_EOA`, `WF_INCREASE_INTAKE`, `WF_NEW_COURSE_INTRODUCTION`, `WF_NEW_BRANCH_INTRODUCTION`), optimistic locking, role authorization, and state transition auditing across statutory states.
 - **New Course & Branch Introduction Workflows**: End-to-end statutory specifications for course discipline, degree type, proposed intake, faculty cadre ratios (1:20 norm), dedicated laboratories, and emerging area branch approvals.
@@ -38,10 +38,10 @@ SAGE incorporates:
 - **Deterministic APH Scrutiny Engine**: Explainable compliance verification mapping to APH 2024–27 clauses (checklists, fire safety validity, land area, name concordance, faculty cadre ratios, dedicated labs, and 75% confidence threshold gate).
 - **Continuous Compliance & Deadline Automation**: Surveillance sweeps (`ComplianceEngineService`) detecting expired safety certificates and unrectified deficiencies, automatic countdown calculation, grace periods, and severity-based escalation (`INFO` → `WARNING` → `CRITICAL`).
 - **Distributed Scheduler Job Locks**: High-availability database-backed job locks (`distributed_job_locks` table) ensuring single-instance execution of scheduled surveillance sweeps across clustered backend nodes.
-- **Authoritative Authorization & Governance**: [AuthoritativeAuthorizationService](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/backend/src/main/java/org/aicte/sage/common/security/AuthoritativeAuthorizationService.java) strictly eliminating blanket cross-institution access through regional jurisdictions (`jurisdiction_assignments`), explicit case assignments (`case_assignments`), and statutory committee appointments (`committee_appointments`).
+- **Authoritative Authorization & Governance**: [AuthoritativeAuthorizationService](backend/src/main/java/org/aicte/sage/common/security/AuthoritativeAuthorizationService.java) strictly eliminating blanket cross-institution access through regional jurisdictions (`jurisdiction_assignments`), explicit case assignments (`case_assignments`), and statutory committee appointments (`committee_appointments`).
 - **Authentication Lifecycle & Server-Side Revocation**: Stateless Bearer JWT with server-side token invalidation (`token_revocations` table and memory cache) on logout; deactivated accounts are blocked.
 - **Reliable Regulatory Audit Trail**: Consequential state changes are committed atomically with `AuditClassification.MANDATORY`; if audit persistence fails, the business transaction rolls back (`AuditPersistenceException`).
-- **AICTE-Inspired Design System & Role Dashboards**: Authentic government aesthetic derived from [aicte.gov.in](https://www.aicte.gov.in/) with high-contrast toggle, font scaling, accessible WCAG 2.2 AA compliant modal dialogs, and custom portals for Central Admin, Regional Officer, Institution Officer, Compliance Officer, and Auditor.
+- **AICTE-Inspired Design System & Role Dashboards**: Accessible government aesthetic with high-contrast toggle, font scaling, WCAG 2.2 AA compliant modal dialogs, and custom portals for Central Admin, Regional Officer, Institution Officer, Compliance Officer, and Auditor.
 
 ---
 
@@ -118,7 +118,7 @@ curl -I http://localhost:5173
 
 > [!NOTE]
 > Synthetic demonstration accounts are enabled **only** in `dev` and `test` profiles via Flyway seed migrations. In production (`prod`), local seed accounts are disabled and strong secrets are strictly enforced.
-> For exhaustive technical details, see [docs/credentials-and-services-audit.md](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/credentials-and-services-audit.md).
+> For exhaustive technical details, see [docs/credentials-and-services-audit.md](docs/credentials-and-services-audit.md).
 
 ### Pre-Seeded Demonstration Accounts (Password: `Password123!`)
 
@@ -149,53 +149,6 @@ Execute the unified test suite across all three subsystems:
 ./scripts/test.sh all
 ```
 
-### Verified Test Results (117 / 117 Passing)
-```text
-================================================================================
-SAGE REGRESSION SUITE RESULTS (Phase 5 Full Stack & RBAC Polish)
-================================================================================
-[1] Spring Boot 3 Backend:
-    - SageApplicationTests: 1 passed
-    - AuthControllerTest: 5 passed
-    - InstitutionControllerTenancyTest: 4 passed
-    - InstitutionManagementTest: 5 passed
-    - UserManagementTest: 5 passed
-    - AuditEndpointTest: 2 passed
-    - HealthEndpointTest: 2 passed
-    - SecurityConfigurationFailureTest: 3 passed
-    - TenancyAuthorizationEvaluatorTest: 4 passed
-    - Phase21SecurityRemediationTest: 9 passed
-    - Phase3WorkflowAndScrutinyTest: 8 passed
-    - Phase4DeadlinesAlertsComplianceTest: 10 passed
-    - Phase5IntegrationHardeningTest: 8 passed
-    Total: 66 passed, 0 failed, 0 errors (BUILD SUCCESS)
-
-[2] FastAPI Automation & OCR Microservice:
-    - test_health.py: 3 passed
-    - test_security.py: 4 passed
-    - test_validation.py: 1 passed
-    - test_ocr.py (Indra OCR, Tesseract fallback, benchmark): 7 passed
-    Total: 15 passed, 0 failed
-
-[3] React Frontend Vitest Suite:
-    - ApiError.test.tsx: 1 passed
-    - StatusBadge.test.tsx: 4 passed
-    - Modal.test.tsx: 3 passed
-    - ConfirmModal.test.tsx: 4 passed
-    - Pagination.test.tsx: 3 passed
-    - TopGovBar.test.tsx: 3 passed
-    - Login.test.tsx: 2 passed
-    - Navigation.test.tsx: 1 passed
-    - Applications.test.tsx: 3 passed
-    - RoleDashboards.test.tsx: 5 passed
-    - ComplianceSurveillance.test.tsx: 4 passed
-    - DeadlinesAlerts.test.tsx: 3 passed
-    Total: 36 passed across 12 test suites, 0 failed
-================================================================================
-OVERALL: 117 / 117 Tests Passed (100% Success Rate)
-================================================================================
-```
-
 ---
 
 ## 6. Service Operational Capability Matrix
@@ -212,14 +165,25 @@ OVERALL: 117 / 117 Tests Passed (100% Success Rate)
 
 ---
 
-## 7. Regulatory Documentation & Architecture Specs
-- [Credentials, Keys & Operational Services Audit](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/credentials-and-services-audit.md)
-- [Final Product Polish & System Audit Report](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/final-product-polish-audit-report.md)
-- [Phase 5 Completion & Deployment Readiness Report](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/phase-5-completion-report.md)
-- [Phase 4 Compliance & Deadline Automation Report](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/phase-4-completion-report.md)
-- [Phase 3 Completion & Scrutiny Engine Report](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/phase-3-completion-report.md)
-- [Architecture Overview](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/architecture.md)
-- [Security & Authorization Model](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/security-model.md)
-- [Database Design & Flyway Migrations](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/database-design.md)
-- [API Contracts & RFC 7807 Error Models](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/api-contracts.md)
-- [Requirements Traceability Matrix](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/requirements-traceability.md)
+## 7. Production Deployment & Regulatory Documentation
+
+### Production Deployment Runbooks (AWS EC2)
+- [AWS EC2 Deployment Runbook](docs/AWS_EC2_DEPLOYMENT.md)
+- [AWS Infrastructure Sizing & Cost Analysis](docs/AWS_INFRASTRUCTURE_AND_COST.md)
+- [Domain & Automated HTTPS (Caddy)](docs/DOMAIN_AND_HTTPS_SETUP.md)
+- [Production Environment Specification](docs/PRODUCTION_ENVIRONMENT.md)
+- [Backup and Disaster Recovery](docs/BACKUP_AND_RECOVERY.md)
+- [Deployment Troubleshooting Guide](docs/DEPLOYMENT_TROUBLESHOOTING.md)
+- [Deployment Implementation Report](docs/DEPLOYMENT_IMPLEMENTATION_REPORT.md)
+
+### Architectural Specs & Verification Reports
+- [Credentials, Keys & Operational Services Audit](docs/credentials-and-services-audit.md)
+- [Final Product Polish & System Audit Report](docs/final-product-polish-audit-report.md)
+- [Phase 5 Completion & Deployment Readiness Report](docs/phase-5-completion-report.md)
+- [Phase 4 Compliance & Deadline Automation Report](docs/phase-4-completion-report.md)
+- [Phase 3 Completion & Scrutiny Engine Report](docs/phase-3-completion-report.md)
+- [Architecture Overview](docs/architecture.md)
+- [Security & Authorization Model](docs/security-model.md)
+- [Database Design & Flyway Migrations](docs/database-design.md)
+- [API Contracts & RFC 7807 Error Models](docs/api-contracts.md)
+- [Requirements Traceability Matrix](docs/requirements-traceability.md)

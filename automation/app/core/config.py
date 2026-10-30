@@ -22,6 +22,11 @@ class Settings(BaseSettings):
         base64.b64decode("QVEuQWI4Uk42S0RtS1hNWXBGYm96aVdZSnpDWnVoaGhUTEJyRVowLTFHU0R6MW1DQjRuU2c=").decode("utf-8").strip()
     )
     GEMINI_MODEL: str = "gemini-flash-lite-latest"
+    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080"
+
+    def get_cors_origins(self) -> list[str]:
+        origins = [orig.strip() for orig in self.CORS_ORIGINS.split(",") if orig.strip()]
+        return origins or ["*"]
 
     model_config = SettingsConfigDict(
         env_file=".env",
