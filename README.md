@@ -41,7 +41,7 @@ SAGE incorporates:
 - **Authoritative Authorization & Governance**: [AuthoritativeAuthorizationService](backend/src/main/java/org/aicte/sage/common/security/AuthoritativeAuthorizationService.java) strictly eliminating blanket cross-institution access through regional jurisdictions (`jurisdiction_assignments`), explicit case assignments (`case_assignments`), and statutory committee appointments (`committee_appointments`).
 - **Authentication Lifecycle & Server-Side Revocation**: Stateless Bearer JWT with server-side token invalidation (`token_revocations` table and memory cache) on logout; deactivated accounts are blocked.
 - **Reliable Regulatory Audit Trail**: Consequential state changes are committed atomically with `AuditClassification.MANDATORY`; if audit persistence fails, the business transaction rolls back (`AuditPersistenceException`).
-- **AICTE-Inspired Design System & Role Dashboards**: Accessible government aesthetic with high-contrast toggle, font scaling, WCAG 2.2 AA compliant modal dialogs, and custom portals for Central Admin, Regional Officer, Institution Officer, Compliance Officer, and Auditor.
+- **AICTE-Inspired Design System & Role Dashboards**: Accessible government aesthetic with high-contrast toggle, font scaling, WCAG 2.2 AA compliant modal dialogs, and 6 custom portals for Central Admin, Regional Officer, Institution Officer, Compliance Officer, Auditor, and EVC Coordinator.
 
 ---
 
@@ -157,7 +157,7 @@ Execute the unified test suite across all three subsystems:
 |---|---|---|
 | **Core REST API (Spring Boot)** | Local / Docker | **100% Working**: Full RBAC, Multi-tenancy, Workflows, Scrutiny Rules, Distributed Scheduler Locks. |
 | **Document Intelligence (FastAPI)** | Local / Docker | **100% Working**: Indra OCR + Tesseract Fallback, structured field extraction. |
-| **Web Frontend (React Vite)** | Local / Nginx | **100% Working**: Accessible government UI, 5 tailored dashboards, modal dialogs. |
+| **Web Frontend (React Vite)** | Local / Nginx | **100% Working**: Accessible government UI, 6 tailored role dashboards, strict RBAC tab filtering, and WCAG AA modals. |
 | **In-App Alerts** | Database | **100% Working**: Alert deduplication via SHA-256 fingerprint, read/dismiss tracking. |
 | **Email Dispatch** | Simulated | **Simulated**: Transactional logs emitted; real delivery requires external SMTP gateway credentials. |
 | **SMS / WhatsApp** | Stubbed | **Pending Gateway**: Schema-ready; requires telecom aggregator API key. |
