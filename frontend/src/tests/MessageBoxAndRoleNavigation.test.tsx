@@ -233,6 +233,9 @@ describe('Role-Specific Sidebar Navigation Matrix', () => {
     expect(screen.getByText('Users & Roles')).toBeInTheDocument()
     expect(screen.getByText('Regulatory Audit Trail')).toBeInTheDocument()
     expect(screen.getByText('Platform Operations')).toBeInTheDocument()
+
+    // Strictly hidden: My Institution tab is NOT shown to Admin
+    expect(screen.queryByText('My Institution')).not.toBeInTheDocument()
   })
 
   it('restricts navigation for ROLE_INSTITUTION_OFFICER to institutional scope', () => {
@@ -277,7 +280,9 @@ describe('Role-Specific Sidebar Navigation Matrix', () => {
     expect(screen.getByText('Regional Institutions')).toBeInTheDocument()
     expect(screen.getByText('EVC Scheduling')).toBeInTheDocument()
 
-    // Strictly hidden: nationwide user management and system operations
+    // Strictly hidden: nationwide user management, system operations, and institutional tabs
+    expect(screen.queryByText('My Institution')).not.toBeInTheDocument()
+    expect(screen.queryByText('Compliance & Deadlines')).not.toBeInTheDocument()
     expect(screen.queryByText('Users & Roles')).not.toBeInTheDocument()
     expect(screen.queryByText('Platform Operations')).not.toBeInTheDocument()
   })
@@ -298,7 +303,9 @@ describe('Role-Specific Sidebar Navigation Matrix', () => {
     expect(screen.getByText('Compliance Surveillance')).toBeInTheDocument()
     expect(screen.getByText('Institutions Directory')).toBeInTheDocument()
 
-    // Strictly hidden: EVC scheduling, user management, and system operations
+    // Strictly hidden: EVC scheduling, user management, required actions, and My Institution
+    expect(screen.queryByText('My Institution')).not.toBeInTheDocument()
+    expect(screen.queryByText('Required Actions')).not.toBeInTheDocument()
     expect(screen.queryByText('EVC Scheduling')).not.toBeInTheDocument()
     expect(screen.queryByText('Users & Roles')).not.toBeInTheDocument()
     expect(screen.queryByText('Platform Operations')).not.toBeInTheDocument()
@@ -317,13 +324,69 @@ describe('Role-Specific Sidebar Navigation Matrix', () => {
     expect(screen.getByText('Panel Allocation')).toBeInTheDocument()
     expect(screen.getByText('Regulatory Alerts')).toBeInTheDocument()
 
-    // Strictly hidden: applications, documents, compliance, nationwide institutions, user management
+    // Strictly hidden: applications, documents, compliance, nationwide institutions, user management, My Institution
+    expect(screen.queryByText('My Institution')).not.toBeInTheDocument()
     expect(screen.queryByText('Applications & Scrutiny')).not.toBeInTheDocument()
     expect(screen.queryByText('Documents & Compliance')).not.toBeInTheDocument()
     expect(screen.queryByText('Required Actions')).not.toBeInTheDocument()
     expect(screen.queryByText('Compliance & Deadlines')).not.toBeInTheDocument()
     expect(screen.queryByText('Institutions Directory')).not.toBeInTheDocument()
     expect(screen.queryByText('Users & Roles')).not.toBeInTheDocument()
+  })
+
+  it('Navbar strictly filters navigation links by role (Admin vs Institution)', () => {
+    // 1. Admin Navbar
+    const { unmount } = render(
+      <AuthContext.Provider
+        value={{
+          user: { id: 'admin-1', username: 'admin@aicte.gov.in', roles: ['ROLE_AICTE_ADMIN'], institutions: [] },
+          token: 'mock-token',
+          isAuthenticated: true,
+          isLoading: false,
+          isAdmin: true,
+          hasRole: (r: string) => r === 'ROLE_AICTE_ADMIN',
+          login: vi.fn(),
+          logout: vi.fn(),
+        }}
+      >
+        <MemoryRouter>
+          <Navbar />
+        </MemoryRouter>
+      </AuthContext.Provider>
+    )
+
+    // Admin MUST NOT see My Institution
+    expect(screen.queryByText('My Institution')).not.toBeInTheDocument()
+    expect(screen.getByText('Audit Trail')).toBeInTheDocument()
+    expect(screen.getByText('System Diagnostics')).toBeInTheDocument()
+    unmount()
+
+    // 2. Institution Navbar
+    render(
+      <AuthContext.Provider
+        value={{
+          user: { id: 'inst-1', username: 'inst@test.edu', roles: ['ROLE_INSTITUTION_OFFICER'], institutions: ['inst-id'] },
+          token: 'mock-token',
+          isAuthenticated: true,
+          isLoading: false,
+          isAdmin: false,
+          hasRole: (r: string) => r === 'ROLE_INSTITUTION_OFFICER',
+          login: vi.fn(),
+          logout: vi.fn(),
+        }}
+      >
+        <MemoryRouter>
+          <Navbar />
+        </MemoryRouter>
+      </AuthContext.Provider>
+    )
+
+    // Institution MUST see My Institution, but NOT Admin modules
+    expect(screen.getByText('My Institution')).toBeInTheDocument()
+    expect(screen.queryByText('System Diagnostics')).not.toBeInTheDocument()
+    expect(screen.queryByText('Audit Trail')).not.toBeInTheDocument()
+    expect(screen.queryByText('Compliance')).not.toBeInTheDocument()
+    expect(screen.queryByText('Institutions')).not.toBeInTheDocument()
   })
 })
 

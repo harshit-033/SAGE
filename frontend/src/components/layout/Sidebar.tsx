@@ -19,7 +19,7 @@ export const Sidebar: React.FC = () => {
   const { user, isAdmin, hasRole } = useAuth()
 
   const isRegional = hasRole('ROLE_REGIONAL_OFFICER')
-  const isInstitution = hasRole('ROLE_INSTITUTION_OFFICER')
+  const isInstitution = hasRole('ROLE_INSTITUTION_OFFICER') && !isAdmin
   const isCompliance = hasRole('ROLE_COMPLIANCE_OFFICER')
   const isAuditor = hasRole('ROLE_AUDITOR')
   const isEvc = hasRole('ROLE_EVC_COORDINATOR')
@@ -90,16 +90,16 @@ export const Sidebar: React.FC = () => {
               </span>
             </NavLink>
 
-            {/* Institution Officer: My Institution Profile */}
-            {isInstitution && (
+            {/* Institution Officer ONLY: My Institution Profile (Strictly hidden for Admin & non-institutions) */}
+            {isInstitution && !isAdmin && (
               <NavLink to={institutionProfileUrl} style={getNavLinkStyle} id="sidebar-nav-my-institution">
                 <Building2 size={16} />
                 <span>My Institution</span>
               </NavLink>
             )}
 
-            {/* Applications & Scrutiny: Admin, Regional, Institution, Auditor */}
-            {(isAdmin || isRegional || isInstitution || isAuditor) && (
+            {/* Applications & Scrutiny: Admin, Regional, Institution, Auditor (HIDDEN for Compliance & EVC) */}
+            {(isAdmin || isRegional || isInstitution || isAuditor) && !isCompliance && !isEvc && (
               <NavLink to="/applications" style={getNavLinkStyle} id="sidebar-nav-applications">
                 <FileCheck size={16} />
                 <span>
@@ -114,8 +114,8 @@ export const Sidebar: React.FC = () => {
               </NavLink>
             )}
 
-            {/* Documents & Compliance: Admin, Regional, Institution, Compliance, Auditor */}
-            {(isAdmin || isRegional || isInstitution || isCompliance || isAuditor) && (
+            {/* Documents & Compliance: Admin, Regional, Institution, Compliance, Auditor (HIDDEN for EVC) */}
+            {(isAdmin || isRegional || isInstitution || isCompliance || isAuditor) && !isEvc && (
               <NavLink to="/documents-compliance" style={getNavLinkStyle} id="sidebar-nav-documents-compliance">
                 <FileCheck size={16} />
                 <span>
@@ -128,24 +128,24 @@ export const Sidebar: React.FC = () => {
               </NavLink>
             )}
 
-            {/* Required Actions: Admin, Regional, Institution, Compliance */}
-            {(isAdmin || isRegional || isInstitution || isCompliance) && (
+            {/* Required Actions: Admin, Regional, Institution, Compliance (HIDDEN for Auditor & EVC) */}
+            {(isAdmin || isRegional || isInstitution || isCompliance) && !isAuditor && !isEvc && (
               <NavLink to="/required-actions" style={getNavLinkStyle} id="sidebar-nav-required-actions">
                 <ShieldAlert size={16} />
                 <span>Required Actions</span>
               </NavLink>
             )}
 
-            {/* Compliance & Deadlines: Admin, Compliance, Auditor */}
-            {(isAdmin || isCompliance || isAuditor) && (
+            {/* Compliance & Deadlines: Admin, Compliance, Auditor (HIDDEN for Institution, Regional & EVC) */}
+            {(isAdmin || isCompliance || isAuditor) && !isInstitution && !isRegional && !isEvc && (
               <NavLink to="/compliance" style={getNavLinkStyle} id="sidebar-nav-compliance">
                 <Clock size={16} />
                 <span>{isAuditor ? 'Compliance Surveillance' : 'Compliance & Deadlines'}</span>
               </NavLink>
             )}
 
-            {/* Regulatory Alerts: Admin, Regional, Institution, Compliance, EVC */}
-            {(isAdmin || isRegional || isInstitution || isCompliance || isEvc) && (
+            {/* Regulatory Alerts: All authenticated roles */}
+            {(isAdmin || isRegional || isInstitution || isCompliance || isEvc || isAuditor) && (
               <NavLink to="/alerts" style={getNavLinkStyle} id="sidebar-nav-alerts">
                 <Bell size={16} />
                 <span>Regulatory Alerts</span>
@@ -153,7 +153,7 @@ export const Sidebar: React.FC = () => {
             )}
 
             {/* Institutions Directory: Admin, Regional, Compliance, Auditor (HIDDEN for Institution Officers & EVC) */}
-            {(isAdmin || isRegional || isCompliance || isAuditor) && (
+            {(isAdmin || isRegional || isCompliance || isAuditor) && !isInstitution && !isEvc && (
               <NavLink to="/institutions" style={getNavLinkStyle} id="sidebar-nav-institutions">
                 <Building2 size={16} />
                 <span>{isRegional ? 'Regional Institutions' : 'Institutions Directory'}</span>
@@ -161,7 +161,7 @@ export const Sidebar: React.FC = () => {
             )}
 
             {/* EVC Scheduling / Inspections: Admin, Regional, EVC Coordinator (HIDDEN for Institution, Compliance, Auditor) */}
-            {(isAdmin || isRegional || isEvc) && (
+            {(isAdmin || isRegional || isEvc) && !isInstitution && !isCompliance && !isAuditor && (
               <NavLink to="/evc" style={getNavLinkStyle} id="sidebar-nav-evc">
                 <CalendarCheck size={16} />
                 <span>{isEvc ? 'Panel Allocation' : 'EVC Scheduling'}</span>
@@ -210,6 +210,7 @@ export const Sidebar: React.FC = () => {
           </div>
         )}
       </div>
+
 
       {/* Official Government Support & Statutory Reference Footer */}
       <div

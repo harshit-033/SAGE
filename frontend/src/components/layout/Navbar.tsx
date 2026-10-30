@@ -11,10 +11,20 @@ import {
   Bell,
   Clock,
   FileCheck,
+  CalendarCheck,
 } from 'lucide-react'
 
 export const Navbar: React.FC = () => {
   const { user, logout, isAdmin, hasRole } = useAuth()
+
+  const isRegional = hasRole('ROLE_REGIONAL_OFFICER')
+  const isInstitution = hasRole('ROLE_INSTITUTION_OFFICER') && !isAdmin
+  const isCompliance = hasRole('ROLE_COMPLIANCE_OFFICER')
+  const isAuditor = hasRole('ROLE_AUDITOR')
+  const isEvc = hasRole('ROLE_EVC_COORDINATOR')
+
+  const primaryInstitutionId = user?.institutions && user.institutions.length > 0 ? user.institutions[0] : null
+  const institutionProfileUrl = primaryInstitutionId ? `/institutions/${primaryInstitutionId}` : '/institutions'
 
   const getPrimaryRole = () => {
     if (!user || !user.roles.length) return 'Guest'
@@ -28,6 +38,7 @@ export const Navbar: React.FC = () => {
     if (user.roles.includes('ROLE_INSTITUTION_OFFICER')) return 'Institution Signatory'
     return user.roles[0].replace('ROLE_', '')
   }
+
 
   return (
     <>
@@ -139,48 +150,109 @@ export const Navbar: React.FC = () => {
       <nav className="gov-nav-bar" aria-label="Main Navigation">
         <div className="gov-nav-inner">
           <ul className="gov-nav-links">
+            {/* Dashboard: All authorized roles */}
             <li className="gov-nav-item">
-              <NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'active' : '')}>
+              <NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-dashboard">
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                   <LayoutDashboard size={15} /> Dashboard
                 </span>
               </NavLink>
             </li>
-            <li className="gov-nav-item">
-              <NavLink to="/applications" className={({ isActive }) => (isActive ? 'active' : '')}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <FileCheck size={15} /> Applications
-                </span>
-              </NavLink>
-            </li>
-            <li className="gov-nav-item">
-              <NavLink to="/compliance" className={({ isActive }) => (isActive ? 'active' : '')}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Clock size={15} /> Compliance
-                </span>
-              </NavLink>
-            </li>
-            <li className="gov-nav-item">
-              <NavLink to="/alerts" className={({ isActive }) => (isActive ? 'active' : '')}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Bell size={15} /> Alerts
-                </span>
-              </NavLink>
-            </li>
-            <li className="gov-nav-item">
-              <NavLink to="/institutions" className={({ isActive }) => (isActive ? 'active' : '')}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Building2 size={15} /> Institutions
-                </span>
-              </NavLink>
-            </li>
+
+            {/* Institution Officer ONLY: My Institution (Strictly hidden for Admin & non-institutions) */}
+            {isInstitution && !isAdmin && (
+              <li className="gov-nav-item">
+                <NavLink to={institutionProfileUrl} className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-my-institution">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Building2 size={15} /> My Institution
+                  </span>
+                </NavLink>
+              </li>
+            )}
+
+            {/* Applications & Scrutiny: Admin, Regional, Institution, Auditor (HIDDEN for Compliance & EVC) */}
+            {(isAdmin || isRegional || isInstitution || isAuditor) && !isCompliance && !isEvc && (
+              <li className="gov-nav-item">
+                <NavLink to="/applications" className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-applications">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <FileCheck size={15} /> {isInstitution ? 'My Applications' : isRegional ? 'Regional Applications' : isAuditor ? 'Applications Review' : 'Applications'}
+                  </span>
+                </NavLink>
+              </li>
+            )}
+
+            {/* Documents & Compliance: Admin, Regional, Institution, Compliance, Auditor (HIDDEN for EVC) */}
+            {(isAdmin || isRegional || isInstitution || isCompliance || isAuditor) && !isEvc && (
+              <li className="gov-nav-item">
+                <NavLink to="/documents-compliance" className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-documents-compliance">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <FileCheck size={15} /> {isInstitution ? 'Document Compliance' : 'Documents'}
+                  </span>
+                </NavLink>
+              </li>
+            )}
+
+            {/* Required Actions: Admin, Regional, Institution, Compliance (HIDDEN for Auditor & EVC) */}
+            {(isAdmin || isRegional || isInstitution || isCompliance) && !isAuditor && !isEvc && (
+              <li className="gov-nav-item">
+                <NavLink to="/required-actions" className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-required-actions">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <ShieldAlert size={15} /> Actions
+                  </span>
+                </NavLink>
+              </li>
+            )}
+
+            {/* Compliance & Deadlines: Admin, Compliance, Auditor (HIDDEN for Institution, Regional & EVC) */}
+            {(isAdmin || isCompliance || isAuditor) && !isInstitution && !isRegional && !isEvc && (
+              <li className="gov-nav-item">
+                <NavLink to="/compliance" className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-compliance">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Clock size={15} /> {isAuditor ? 'Compliance Surveillance' : 'Compliance'}
+                  </span>
+                </NavLink>
+              </li>
+            )}
+
+            {/* Regulatory Alerts: All authenticated roles */}
+            {(isAdmin || isRegional || isInstitution || isCompliance || isEvc || isAuditor) && (
+              <li className="gov-nav-item">
+                <NavLink to="/alerts" className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-alerts">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Bell size={15} /> Alerts
+                  </span>
+                </NavLink>
+              </li>
+            )}
+
+            {/* Institutions Directory: Admin, Regional, Compliance, Auditor (HIDDEN for Institution Officers & EVC) */}
+            {(isAdmin || isRegional || isCompliance || isAuditor) && !isInstitution && !isEvc && (
+              <li className="gov-nav-item">
+                <NavLink to="/institutions" className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-institutions">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Building2 size={15} /> {isRegional ? 'Regional Institutions' : 'Institutions'}
+                  </span>
+                </NavLink>
+              </li>
+            )}
+
+            {/* EVC Scheduling / Inspections: Admin, Regional, EVC Coordinator (HIDDEN for Institution, Compliance, Auditor) */}
+            {(isAdmin || isRegional || isEvc) && !isInstitution && !isCompliance && !isAuditor && (
+              <li className="gov-nav-item">
+                <NavLink to="/evc" className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-evc">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <CalendarCheck size={15} /> {isEvc ? 'Panel Allocation' : 'EVC Scheduling'}
+                  </span>
+                </NavLink>
+              </li>
+            )}
 
             {/* Administrator & Auditor Links */}
             {isAdmin && (
               <li className="gov-nav-item">
-                <NavLink to="/admin/users" className={({ isActive }) => (isActive ? 'active' : '')}>
+                <NavLink to="/admin/users" className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-users">
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Users size={15} /> User Management
+                    <Users size={15} /> Users &amp; Roles
                   </span>
                 </NavLink>
               </li>
@@ -188,7 +260,7 @@ export const Navbar: React.FC = () => {
 
             {(isAdmin || hasRole('ROLE_AUDITOR')) && (
               <li className="gov-nav-item">
-                <NavLink to="/admin/audit" className={({ isActive }) => (isActive ? 'active' : '')}>
+                <NavLink to="/admin/audit" className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-audit">
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                     <ShieldAlert size={15} /> Audit Trail
                   </span>
@@ -198,7 +270,7 @@ export const Navbar: React.FC = () => {
 
             {isAdmin && (
               <li className="gov-nav-item">
-                <NavLink to="/system-health" className={({ isActive }) => (isActive ? 'active' : '')}>
+                <NavLink to="/system-health" className={({ isActive }) => (isActive ? 'active' : '')} id="navbar-nav-system-health">
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                     <Server size={15} /> System Diagnostics
                   </span>
