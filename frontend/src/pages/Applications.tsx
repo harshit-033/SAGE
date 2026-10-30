@@ -182,10 +182,11 @@ export const Applications: React.FC = () => {
           </p>
         </div>
 
-        {(hasRole('ROLE_INSTITUTION_OFFICER') || isAdmin) && (
+        {hasRole('ROLE_INSTITUTION_OFFICER') && !isAdmin && (
           <button
             onClick={handleOpenCreateModal}
             className="btn btn-primary"
+            id="btn-new-application"
             style={{
               display: 'flex',
               alignItems: 'center',

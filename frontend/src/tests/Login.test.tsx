@@ -19,9 +19,13 @@ describe('Login Screen', () => {
     expect(screen.getByLabelText(/Security Password/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Sign In to Portal/i })).toBeInTheDocument()
 
-    // Demo account presets
+    // Demo account presets - all 6 system roles supported
     expect(screen.getByText(/Central Admin/i)).toBeInTheDocument()
-    expect(screen.getByText(/Institution Officer/i)).toBeInTheDocument()
+    expect(screen.getByText(/Regional Officer/i)).toBeInTheDocument()
+    expect(screen.getByText(/Compliance Officer/i)).toBeInTheDocument()
+    expect(screen.getByText(/EVC Coordinator/i)).toBeInTheDocument()
+    expect(screen.getByText(/Regulatory Auditor/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Institution Officer/i).length).toBe(2)
   })
 
   it('populates fields when a preset button is clicked', () => {

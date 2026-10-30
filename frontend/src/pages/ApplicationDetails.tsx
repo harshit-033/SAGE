@@ -325,6 +325,7 @@ export const ApplicationDetails: React.FC = () => {
   ]
 
   const isOfficerOrAdmin = isAdmin || hasRole('ROLE_REGIONAL_OFFICER') || hasRole('ROLE_COMMITTEE_MEMBER') || hasRole('ROLE_EVC_COORDINATOR')
+  const isInstitution = hasRole('ROLE_INSTITUTION_OFFICER') && !isAdmin
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -376,7 +377,7 @@ export const ApplicationDetails: React.FC = () => {
 
           {/* Quick Actions */}
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {application.currentState === 'DRAFT' && (
+            {application.currentState === 'DRAFT' && isInstitution && (
               <button
                 onClick={() => submitAppMutation.mutate()}
                 disabled={submitAppMutation.isPending}
@@ -396,7 +397,7 @@ export const ApplicationDetails: React.FC = () => {
               </button>
             )}
 
-            {application.currentState === 'DEFICIENT' && (hasRole('ROLE_INSTITUTION_OFFICER') || isAdmin) && (
+            {application.currentState === 'DEFICIENT' && isInstitution && (
               <button
                 onClick={() => transitionMutation.mutate({ state: 'RESUBMITTED', reason: 'Deficiencies rectified and compliance documents updated.' })}
                 disabled={transitionMutation.isPending}
@@ -416,7 +417,7 @@ export const ApplicationDetails: React.FC = () => {
               </button>
             )}
 
-            {(application.currentState === 'DRAFT' || application.currentState === 'SUBMITTED' || application.currentState === 'DEFICIENT') && (hasRole('ROLE_INSTITUTION_OFFICER') || isAdmin) && (
+            {(application.currentState === 'DRAFT' || application.currentState === 'SUBMITTED' || application.currentState === 'DEFICIENT') && isInstitution && (
               <button
                 onClick={async () => {
                   const confirmed = await showConfirmation({
@@ -447,23 +448,25 @@ export const ApplicationDetails: React.FC = () => {
               </button>
             )}
 
-            <button
-              onClick={() => evaluateScrutinyMutation.mutate()}
-              disabled={evaluateScrutinyMutation.isPending}
-              className="btn btn-outline"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                borderColor: 'var(--gov-blue)',
-                color: 'var(--gov-blue)',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-              }}
-            >
-              <Cpu size={15} />
-              <span>{evaluateScrutinyMutation.isPending ? 'Scrutinizing...' : 'Evaluate Scrutiny Rules'}</span>
-            </button>
+            {isOfficerOrAdmin && (
+              <button
+                onClick={() => evaluateScrutinyMutation.mutate()}
+                disabled={evaluateScrutinyMutation.isPending}
+                className="btn btn-outline"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  borderColor: 'var(--gov-blue)',
+                  color: 'var(--gov-blue)',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                }}
+              >
+                <Cpu size={15} />
+                <span>{evaluateScrutinyMutation.isPending ? 'Scrutinizing...' : 'Evaluate Scrutiny Rules'}</span>
+              </button>
+            )}
 
             {isOfficerOrAdmin && (
               <button
@@ -697,7 +700,7 @@ export const ApplicationDetails: React.FC = () => {
                 </p>
               </div>
 
-              {application.currentState === 'DRAFT' && (
+              {application.currentState === 'DRAFT' && isInstitution && (
                 <button
                   onClick={() => setIsEditingCourse(!isEditingCourse)}
                   className="btn btn-outline"
@@ -1026,108 +1029,110 @@ export const ApplicationDetails: React.FC = () => {
       {/* Tab: Documents & OCR */}
       {activeTab === 'documents' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Upload Form */}
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              padding: '1.25rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-medium)',
-            }}
-          >
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--gov-navy)', marginBottom: '0.75rem' }}>
-              Upload Regulatory Document
-            </h3>
-
-            {uploadError && (
-              <div
-                style={{
-                  padding: '0.75rem',
-                  backgroundColor: 'var(--status-danger-bg)',
-                  color: 'var(--status-danger-text)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.85rem',
-                  marginBottom: '1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
-                <AlertTriangle size={16} />
-                <span>{uploadError}</span>
-              </div>
-            )}
-
-            <form
-              onSubmit={handleUploadSubmit}
-              style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}
+          {/* Upload Form (Institution Signatory Only) */}
+          {isInstitution && (
+            <div
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                padding: '1.25rem',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-medium)',
+              }}
             >
-              <div style={{ flex: '1', minWidth: '220px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                  Document Type (APH Mandatory Checklist)
-                </label>
-                <select
-                  value={selectedDocType}
-                  onChange={(e) => setSelectedDocType(e.target.value)}
-                  className="form-control"
-                  style={{ fontSize: '0.85rem' }}
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--gov-navy)', marginBottom: '0.75rem' }}>
+                Upload Regulatory Document
+              </h3>
+
+              {uploadError && (
+                <div
+                  style={{
+                    padding: '0.75rem',
+                    backgroundColor: 'var(--status-danger-bg)',
+                    color: 'var(--status-danger-text)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.85rem',
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
                 >
-                  <option value="FIRE_SAFETY_CERTIFICATE">Fire Safety Certificate / NOC</option>
-                  <option value="OCCUPANCY_CERTIFICATE">Building Occupancy / Completion Certificate</option>
-                  <option value="LAND_REGISTRATION">Land Title Deed &amp; Survey Schedule</option>
-                  <option value="AFFIDAVIT_FORMAT_1">Statutory Anti-Ragging Affidavit (Format-1)</option>
-                  <option value="BOARD_RESOLUTION">Governing Body Board Resolution</option>
-                  <option value="FACULTY_LIST_QUALIFICATION">Faculty Cadre &amp; Qualification Roster (APH 2024)</option>
-                  <option value="LABORATORY_INFRASTRUCTURE_REPORT">Laboratory Setup &amp; Carpet Area Report</option>
-                  <option value="EQUIPMENT_UTILIZATION_CERTIFICATE">Equipment Stock &amp; Utilization Certificate</option>
-                  <option value="BUILDING_PLAN_APPROVAL">Municipal Building Plan Approval</option>
-                  <option value="FINANCIAL_AUDIT_REPORT">Audited Financial Statements (Last 3 Yrs)</option>
-                  <option value="SYLLABUS_CURRICULUM_APPROVAL">University Syllabus / Curriculum Endorsement</option>
-                  <option value="OTHER_SUPPORTING">Other Supporting Regulatory Document</option>
-                </select>
-              </div>
+                  <AlertTriangle size={16} />
+                  <span>{uploadError}</span>
+                </div>
+              )}
 
-              <div style={{ flex: '1.5', minWidth: '250px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                  Select Document File (PDF, PNG, JPEG up to 15MB)
-                </label>
-                <input
-                  type="file"
-                  accept=".pdf,.png,.jpg,.jpeg"
-                  onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
-                  className="form-control"
-                  style={{ fontSize: '0.85rem' }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={uploadMutation.isPending || isAiValidating || !uploadFile}
-                className="btn btn-primary"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  backgroundColor: 'var(--gov-orange)',
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                }}
+              <form
+                onSubmit={handleUploadSubmit}
+                style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}
               >
-                {isAiValidating ? (
-                  <>
-                    <RefreshCw size={15} className="spin" />
-                    <span>Checking with SAGE AI...</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload size={15} />
-                    <span>{uploadMutation.isPending ? 'Verifying Document...' : 'Upload & Verify with AI'}</span>
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
+                <div style={{ flex: '1', minWidth: '220px' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Document Type (APH Mandatory Checklist)
+                  </label>
+                  <select
+                    value={selectedDocType}
+                    onChange={(e) => setSelectedDocType(e.target.value)}
+                    className="form-control"
+                    style={{ fontSize: '0.85rem' }}
+                  >
+                    <option value="FIRE_SAFETY_CERTIFICATE">Fire Safety Certificate / NOC</option>
+                    <option value="OCCUPANCY_CERTIFICATE">Building Occupancy / Completion Certificate</option>
+                    <option value="LAND_REGISTRATION">Land Title Deed &amp; Survey Schedule</option>
+                    <option value="AFFIDAVIT_FORMAT_1">Statutory Anti-Ragging Affidavit (Format-1)</option>
+                    <option value="BOARD_RESOLUTION">Governing Body Board Resolution</option>
+                    <option value="FACULTY_LIST_QUALIFICATION">Faculty Cadre &amp; Qualification Roster (APH 2024)</option>
+                    <option value="LABORATORY_INFRASTRUCTURE_REPORT">Laboratory Setup &amp; Carpet Area Report</option>
+                    <option value="EQUIPMENT_UTILIZATION_CERTIFICATE">Equipment Stock &amp; Utilization Certificate</option>
+                    <option value="BUILDING_PLAN_APPROVAL">Municipal Building Plan Approval</option>
+                    <option value="FINANCIAL_AUDIT_REPORT">Audited Financial Statements (Last 3 Yrs)</option>
+                    <option value="SYLLABUS_CURRICULUM_APPROVAL">University Syllabus / Curriculum Endorsement</option>
+                    <option value="OTHER_SUPPORTING">Other Supporting Regulatory Document</option>
+                  </select>
+                </div>
+
+                <div style={{ flex: '1.5', minWidth: '250px' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Select Document File (PDF, PNG, JPEG up to 15MB)
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
+                    className="form-control"
+                    style={{ fontSize: '0.85rem' }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={uploadMutation.isPending || isAiValidating || !uploadFile}
+                  className="btn btn-primary"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    backgroundColor: 'var(--gov-orange)',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  {isAiValidating ? (
+                    <>
+                      <RefreshCw size={15} className="spin" />
+                      <span>Checking with SAGE AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={15} />
+                      <span>{uploadMutation.isPending ? 'Verifying Document...' : 'Upload & Verify with AI'}</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          )}
 
           {/* Documents List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1143,7 +1148,9 @@ export const ApplicationDetails: React.FC = () => {
               >
                 <FileText size={32} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  No documents uploaded yet. Upload mandatory certificates above to initiate regulatory verification.
+                  {isInstitution
+                    ? 'No documents uploaded yet. Upload mandatory certificates above to initiate regulatory verification.'
+                    : 'No regulatory documents have been submitted for this application yet.'}
                 </p>
               </div>
             ) : (

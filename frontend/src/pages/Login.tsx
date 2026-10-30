@@ -51,7 +51,7 @@ export const Login: React.FC = () => {
           className="gov-card"
           style={{
             width: '100%',
-            maxWidth: '480px',
+            maxWidth: '560px',
             boxShadow: 'var(--shadow-md)',
             overflow: 'hidden',
           }}
@@ -141,62 +141,121 @@ export const Login: React.FC = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.45rem',
+                  justifyContent: 'space-between',
                   marginBottom: '0.75rem',
                   color: 'var(--text-muted)',
                   fontSize: '0.75rem',
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
+                  flexWrap: 'wrap',
+                  gap: '0.35rem',
                 }}
               >
-                <KeyRound size={14} />
-                <span>Development Seed Accounts (Dev / Evaluation Only)</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <KeyRound size={14} />
+                  <span>Authorized Roles (All 7 Demonstration Profiles)</span>
+                </div>
+                <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>Password123!</span>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.45rem' }}>
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                  style={{ justifyContent: 'flex-start', textAlign: 'left', padding: '0.45rem 0.65rem' }}
                   onClick={() => fillCredentials('admin@aicte.gov.in', 'Password123!')}
+                  id="preset-login-admin"
                 >
-                  <UserCheck size={14} color="var(--gov-blue)" />
-                  <span style={{ fontWeight: 600 }}>Central Admin:</span>
-                  <span style={{ color: 'var(--text-muted)' }}>admin@aicte.gov.in</span>
+                  <UserCheck size={14} color="var(--gov-blue)" style={{ flexShrink: 0 }} />
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.78rem' }}>Central Admin</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>admin@aicte.gov.in</div>
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                  style={{ justifyContent: 'flex-start', textAlign: 'left', padding: '0.45rem 0.65rem' }}
+                  onClick={() => fillCredentials('regional@aicte.gov.in', 'Password123!')}
+                  id="preset-login-regional"
+                >
+                  <UserCheck size={14} color="var(--gov-orange)" style={{ flexShrink: 0 }} />
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.78rem' }}>Regional Officer</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>regional@aicte.gov.in</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ justifyContent: 'flex-start', textAlign: 'left', padding: '0.45rem 0.65rem' }}
                   onClick={() => fillCredentials('officer@delhi-tech.edu', 'Password123!')}
+                  id="preset-login-institution-delhi"
                 >
-                  <UserCheck size={14} color="var(--status-success-text)" />
-                  <span style={{ fontWeight: 600 }}>Institution Officer:</span>
-                  <span style={{ color: 'var(--text-muted)' }}>officer@delhi-tech.edu (Delhi Tech)</span>
+                  <UserCheck size={14} color="var(--status-success-text)" style={{ flexShrink: 0 }} />
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.78rem' }}>Institution Officer (Delhi)</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>officer@delhi-tech.edu</div>
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                  style={{ justifyContent: 'flex-start', textAlign: 'left', padding: '0.45rem 0.65rem' }}
+                  onClick={() => fillCredentials('officer@mumbai-engg.edu', 'Password123!')}
+                  id="preset-login-institution-mumbai"
+                >
+                  <UserCheck size={14} color="#16a34a" style={{ flexShrink: 0 }} />
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.78rem' }}>Institution Officer (Mumbai)</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>officer@mumbai-engg.edu</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ justifyContent: 'flex-start', textAlign: 'left', padding: '0.45rem 0.65rem' }}
                   onClick={() => fillCredentials('compliance@aicte.gov.in', 'Password123!')}
+                  id="preset-login-compliance"
                 >
-                  <UserCheck size={14} color="var(--gov-saffron)" />
-                  <span style={{ fontWeight: 600 }}>Compliance Officer:</span>
-                  <span style={{ color: 'var(--text-muted)' }}>compliance@aicte.gov.in</span>
+                  <UserCheck size={14} color="var(--gov-saffron)" style={{ flexShrink: 0 }} />
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.78rem' }}>Compliance Officer</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>compliance@aicte.gov.in</div>
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  style={{ justifyContent: 'flex-start', textAlign: 'left' }}
-                  onClick={() => fillCredentials('auditor@aicte.gov.in', 'Password123!')}
+                  style={{ justifyContent: 'flex-start', textAlign: 'left', padding: '0.45rem 0.65rem' }}
+                  onClick={() => fillCredentials('evc.coord@aicte.gov.in', 'Password123!')}
+                  id="preset-login-evc"
                 >
-                  <UserCheck size={14} color="var(--status-info-text)" />
-                  <span style={{ fontWeight: 600 }}>Regulatory Auditor:</span>
-                  <span style={{ color: 'var(--text-muted)' }}>auditor@aicte.gov.in</span>
+                  <UserCheck size={14} color="#7c3aed" style={{ flexShrink: 0 }} />
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.78rem' }}>EVC Coordinator</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>evc.coord@aicte.gov.in</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ justifyContent: 'flex-start', textAlign: 'left', padding: '0.45rem 0.65rem' }}
+                  onClick={() => fillCredentials('auditor@aicte.gov.in', 'Password123!')}
+                  id="preset-login-auditor"
+                >
+                  <UserCheck size={14} color="var(--status-info-text)" style={{ flexShrink: 0 }} />
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.78rem' }}>Regulatory Auditor</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>auditor@aicte.gov.in</div>
+                  </div>
                 </button>
               </div>
             </div>

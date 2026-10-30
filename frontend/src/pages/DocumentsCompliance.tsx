@@ -29,6 +29,7 @@ export const DocumentsCompliance: React.FC = () => {
   const { showSuccess, handleApiError } = useMessage()
   const institutionId = user?.institutions?.[0]
   const isOfficer = isAdmin || hasRole('ROLE_REGIONAL_OFFICER') || hasRole('ROLE_COMPLIANCE_OFFICER') || hasRole('ROLE_SCRUTINY_OFFICER')
+  const isInstitution = hasRole('ROLE_INSTITUTION_OFFICER') && !isAdmin
 
   // Search & Filter state
   const [search, setSearch] = useState('')
@@ -302,17 +303,19 @@ export const DocumentsCompliance: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.65rem' }}>
-          <button
-            onClick={() => setIsUploadModalOpen(true)}
-            className="btn btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: 'var(--gov-blue)' }}
-            id="btn-upload-document"
-          >
-            <Plus size={16} />
-            <span>Upload Document</span>
-          </button>
-        </div>
+        {isInstitution && (
+          <div style={{ display: 'flex', gap: '0.65rem' }}>
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: 'var(--gov-blue)' }}
+              id="btn-upload-document"
+            >
+              <Plus size={16} />
+              <span>Upload Document</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Compliance Metric Cards */}
@@ -481,9 +484,11 @@ export const DocumentsCompliance: React.FC = () => {
                     <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.5rem 0' }}>
                       No documents found matching the filter criteria.
                     </p>
-                    <button onClick={() => setIsUploadModalOpen(true)} className="btn btn-outline btn-sm">
-                      Upload First Document
-                    </button>
+                    {isInstitution && (
+                      <button onClick={() => setIsUploadModalOpen(true)} className="btn btn-outline btn-sm">
+                        Upload First Document
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -748,21 +753,25 @@ export const DocumentsCompliance: React.FC = () => {
 
                   {/* Actions Bar */}
                   <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                    <button
-                      onClick={() => setIsReplaceModalOpen(true)}
-                      className="btn btn-primary btn-sm"
-                      style={{ backgroundColor: 'var(--gov-orange)' }}
-                      id="btn-open-replace-modal"
-                    >
-                      <History size={14} /> Upload Replacement (v{docDetail.document.versionNumber + 1})
-                    </button>
-                    <button
-                      onClick={() => setIsClarifyModalOpen(true)}
-                      className="btn btn-secondary btn-sm"
-                      id="btn-open-clarify-modal"
-                    >
-                      <HelpCircle size={14} /> Submit Clarification
-                    </button>
+                    {isInstitution && (
+                      <button
+                        onClick={() => setIsReplaceModalOpen(true)}
+                        className="btn btn-primary btn-sm"
+                        style={{ backgroundColor: 'var(--gov-orange)' }}
+                        id="btn-open-replace-modal"
+                      >
+                        <History size={14} /> Upload Replacement (v{docDetail.document.versionNumber + 1})
+                      </button>
+                    )}
+                    {isInstitution && (
+                      <button
+                        onClick={() => setIsClarifyModalOpen(true)}
+                        className="btn btn-secondary btn-sm"
+                        id="btn-open-clarify-modal"
+                      >
+                        <HelpCircle size={14} /> Submit Clarification
+                      </button>
+                    )}
                     {isOfficer && (
                       <button
                         onClick={() => {

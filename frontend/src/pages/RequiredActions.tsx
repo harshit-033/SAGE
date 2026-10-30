@@ -17,6 +17,7 @@ export const RequiredActions: React.FC = () => {
   const { showSuccess, handleApiError } = useMessage()
   const institutionId = user?.institutions?.[0]
   const isOfficer = isAdmin || hasRole('ROLE_REGIONAL_OFFICER') || hasRole('ROLE_COMPLIANCE_OFFICER')
+  const isInstitution = hasRole('ROLE_INSTITUTION_OFFICER') && !isAdmin
 
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [page, setPage] = useState(0)
@@ -284,7 +285,7 @@ export const RequiredActions: React.FC = () => {
                       )}
                     </td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {(act.status === 'OPEN' || act.status === 'IN_PROGRESS' || act.status === 'OVERDUE') && (
+                      {isInstitution && (act.status === 'OPEN' || act.status === 'IN_PROGRESS' || act.status === 'OVERDUE') && (
                         <button
                           onClick={() => {
                             setSelectedAction(act)
