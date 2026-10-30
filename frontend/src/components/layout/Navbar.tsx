@@ -34,10 +34,12 @@ export const Navbar: React.FC = () => {
       {/* Institutional Main Branding Header */}
       <header className="gov-branding-header">
         <div className="gov-branding-inner">
-          <div className="gov-brand-title">
-            <div className="gov-brand-emblem" aria-hidden="true">
-              AICTE
-            </div>
+          <NavLink to="/dashboard" className="gov-brand-title" style={{ textDecoration: 'none' }}>
+            <img
+              src="/sage-logo.png"
+              alt="SAGE Logo"
+              className="gov-brand-logo"
+            />
             <div className="gov-brand-text">
               <h1>
                 SAGE
@@ -45,9 +47,9 @@ export const Navbar: React.FC = () => {
                   GOVERNANCE PORTAL
                 </span>
               </h1>
-              <p>Integrated AICTE Approval Workflow Automation &amp; Compliance Monitoring System</p>
+              <p>System for Approval Governance and Evaluation</p>
             </div>
-          </div>
+          </NavLink>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             {/* Jurisdiction Badge */}

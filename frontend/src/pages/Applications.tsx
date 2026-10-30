@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { StatusBadge } from '../components/common/StatusBadge'
 import { Pagination } from '../components/common/Pagination'
 import { Modal } from '../components/common/Modal'
-import { FileText, Plus, Filter, Eye, AlertCircle, Cpu } from 'lucide-react'
+import { FileText, Plus, Filter, Eye, AlertCircle, FileCheck2 } from 'lucide-react'
 
 interface ApplicationListItem {
   id: string

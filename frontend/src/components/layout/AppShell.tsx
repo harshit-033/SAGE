@@ -36,7 +36,7 @@ export const AppShell: React.FC = () => {
       <footer className="gov-footer" role="contentinfo">
         <div className="gov-footer-inner">
           <div className="gov-footer-prototype-alert">
-            <strong>STATUTORY NOTICE:</strong> Smart AICTE Governance Engine (SAGE) operates under AICTE Approval Process Handbook (APH 2024–27) statutory guidelines. All institutional disclosures, digital representations, and verification findings are subject to Section 10 of the AICTE Act, 1987.
+            <strong>STATUTORY NOTICE:</strong> System for Approval Governance and Evaluation (SAGE) operates under AICTE Approval Process Handbook (APH 2024–27) statutory guidelines. All institutional disclosures, digital representations, and verification findings are subject to Section 10 of the AICTE Act, 1987.
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>

@@ -2,17 +2,14 @@ import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { evcApi, type EvcInspectionDto } from '../../api/evcApi'
-import { alertsApi } from '../../api/alertsApi'
 import {
   CalendarCheck,
   Clock,
   Users,
-  CheckCircle2,
   AlertTriangle,
   ArrowRight,
   Building2,
   Calendar,
-  FileCheck,
   ShieldAlert,
 } from 'lucide-react'
 
@@ -27,12 +24,7 @@ export const EvcCoordinatorDashboard: React.FC = () => {
     queryFn: () => evcApi.getScheduledInspections(),
   })
 
-  const { data: alertsPage, isLoading: loadingAlerts } = useQuery({
-    queryKey: ['evc-alerts'],
-    queryFn: () => alertsApi.getAlerts({ page: 0, size: 5, unreadOnly: true }),
-  })
-
-  const isLoading = loadingPending || loadingScheduled || loadingAlerts
+  const isLoading = loadingPending || loadingScheduled
 
   const totalPending = pendingInspections.length
   const totalScheduled = scheduledInspections.length

@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MessageProvider, useMessage, sanitizeApiError, sanitizeTechnicalMessage } from '../context/MessageContext'
 import { MessageBox } from '../components/common/MessageBox'
 import { Sidebar } from '../components/layout/Sidebar'
+import { Navbar } from '../components/layout/Navbar'
+import { Login } from '../pages/Login'
 import { EvcCoordinatorDashboard } from '../components/dashboard/EvcCoordinatorDashboard'
 import { AuthContext } from '../context/AuthContext'
 import { ApiError } from '../api/client'
@@ -342,3 +344,60 @@ describe('Dedicated EvcCoordinatorDashboard', () => {
     expect(screen.getByText('Statutory Panel Allocation')).toBeInTheDocument()
   })
 })
+
+describe('Brand Logo & Full Form Presentation', () => {
+  it('renders official SAGE logo and System for Approval Governance and Evaluation in Navbar', () => {
+    const mockAuthContext = {
+      user: { id: 'admin-1', username: 'admin@aicte.gov.in', roles: ['ROLE_AICTE_ADMIN'], institutions: [] },
+      token: 'mock-token',
+      isAuthenticated: true,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+      isAdmin: true,
+      isInstitutionalSignatory: false,
+      hasRole: vi.fn().mockReturnValue(true),
+    }
+
+    render(
+      <AuthContext.Provider value={mockAuthContext as any}>
+        <MemoryRouter>
+          <Navbar />
+        </MemoryRouter>
+      </AuthContext.Provider>
+    )
+
+    const logo = screen.getByAltText('SAGE Logo')
+    expect(logo).toBeInTheDocument()
+    expect(logo).toHaveAttribute('src', '/sage-logo.png')
+    expect(screen.getByText('System for Approval Governance and Evaluation')).toBeInTheDocument()
+  })
+
+  it('renders official SAGE logo and System for Approval Governance and Evaluation in Login page', () => {
+    const mockAuthContext = {
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+      isAdmin: false,
+      isInstitutionalSignatory: false,
+      hasRole: vi.fn().mockReturnValue(false),
+    }
+
+    render(
+      <AuthContext.Provider value={mockAuthContext as any}>
+        <MemoryRouter>
+          <Login />
+        </MemoryRouter>
+      </AuthContext.Provider>
+    )
+
+    const logo = screen.getByAltText('SAGE Logo')
+    expect(logo).toBeInTheDocument()
+    expect(logo).toHaveAttribute('src', '/sage-logo.png')
+    expect(screen.getByText('System for Approval Governance and Evaluation')).toBeInTheDocument()
+  })
+})
+

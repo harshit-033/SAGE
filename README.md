@@ -1,4 +1,13 @@
-# SAGE — Smart AICTE Guidance and Evaluation
+# SAGE — System for Approval Governance and Evaluation
+
+<p align="center">
+  <img src="frontend/public/sage-logo.png" width="150" alt="SAGE Logo" />
+  <br/>
+  <strong>System for Approval Governance and Evaluation (SAGE)</strong>
+  <br/>
+  <em>Official AICTE Statutory Regulatory Platform</em>
+</p>
+
 > **SIH 2026 Problem Statement 26262**:
 > *“Integrated AICTE Approval Workflow Automation, Compliance Monitoring and Alert Management System.”*  
 > **Primary Regulatory Source**: AICTE Approval Process Handbook (APH) 2024–25 to 2026–27

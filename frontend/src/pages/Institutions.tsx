@@ -12,8 +12,6 @@ import {
   Search,
   PlusCircle,
   RefreshCw,
-  ShieldAlert,
-  CheckCircle,
   Eye,
   Power,
 } from 'lucide-react'

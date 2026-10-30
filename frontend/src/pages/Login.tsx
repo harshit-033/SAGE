@@ -60,29 +60,22 @@ export const Login: React.FC = () => {
 
           <div style={{ padding: '2rem' }}>
             <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-              <div
+              <img
+                src="/sage-logo.png"
+                alt="SAGE Logo"
                 style={{
-                  width: '54px',
-                  height: '54px',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--gov-navy)',
-                  color: '#ffffff',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                  fontSize: '1.25rem',
-                  border: '2px solid var(--gov-saffron)',
+                  width: '90px',
+                  height: '90px',
+                  objectFit: 'contain',
                   marginBottom: '0.75rem',
+                  display: 'inline-block',
                 }}
-              >
-                AICTE
-              </div>
-              <h1 style={{ fontSize: '1.4rem', color: 'var(--gov-navy)' }}>
+              />
+              <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
                 SAGE Portal Login
               </h1>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-                Integrated Approval Automation &amp; Compliance Monitoring (SIH 26262)
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem', fontWeight: 500 }}>
+                System for Approval Governance and Evaluation
               </p>
             </div>
 

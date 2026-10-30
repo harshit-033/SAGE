@@ -60,7 +60,7 @@ export const SystemHealth: React.FC = () => {
           message: 'Administrative operational verification probe',
         }),
       })
-      const data = await res.json()
+      await res.json()
       if (res.ok) {
         setPingResult('Operational Communication Confirmed: The document intelligence subsystem is online and responding normally.')
       } else {
