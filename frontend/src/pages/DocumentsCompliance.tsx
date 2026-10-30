@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { documentComplianceApi, type DocumentDto } from '../api/documentComplianceApi'
 import { useAuth } from '../context/AuthContext'
+import { useMessage } from '../context/MessageContext'
 import { Modal } from '../components/common/Modal'
 import {
   FileText,
@@ -21,6 +22,7 @@ import {
 export const DocumentsCompliance: React.FC = () => {
   const queryClient = useQueryClient()
   const { user, hasRole, isAdmin } = useAuth()
+  const { showSuccess, handleApiError } = useMessage()
   const institutionId = user?.institutions?.[0]
   const isOfficer = isAdmin || hasRole('ROLE_REGIONAL_OFFICER') || hasRole('ROLE_COMPLIANCE_OFFICER') || hasRole('ROLE_SCRUTINY_OFFICER')
 
@@ -114,9 +116,10 @@ export const DocumentsCompliance: React.FC = () => {
       setIsUploadModalOpen(false)
       setUploadFile(null)
       setUploadError(null)
+      showSuccess('Document Uploaded', 'Your document has been submitted and queued for regulatory verification.')
     },
-    onError: (err: any) => {
-      setUploadError(err.message || 'Failed to upload document')
+    onError: (err: unknown) => {
+      handleApiError(err, 'Upload Notice', 'Failed to upload document')
     },
   })
 
@@ -136,9 +139,10 @@ export const DocumentsCompliance: React.FC = () => {
       setReplaceFile(null)
       setReplacementNotes('')
       setReplaceError(null)
+      showSuccess('Document Replaced', 'A new version of this document has been submitted. The previous version remains available in the document history.')
     },
-    onError: (err: any) => {
-      setReplaceError(err.message || 'Failed to replace document')
+    onError: (err: unknown) => {
+      handleApiError(err, 'Replacement Notice', 'Failed to replace document')
     },
   })
 
@@ -153,9 +157,10 @@ export const DocumentsCompliance: React.FC = () => {
       setIsClarifyModalOpen(false)
       setClarificationText('')
       setClarifyError(null)
+      showSuccess('Clarification Submitted', 'Your clarification has been submitted for scrutiny.')
     },
-    onError: (err: any) => {
-      setClarifyError(err.message || 'Failed to submit clarification')
+    onError: (err: unknown) => {
+      handleApiError(err, 'Clarification Notice', 'Failed to submit clarification')
     },
   })
 
@@ -169,9 +174,10 @@ export const DocumentsCompliance: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['document-registry'] })
       queryClient.invalidateQueries({ queryKey: ['document-compliance-summary'] })
       setIsReviewModalOpen(false)
+      showSuccess('Review Recorded', 'Document verification decision has been authoritatively recorded.')
     },
-    onError: (err: any) => {
-      alert(err.message || 'Failed to update review')
+    onError: (err: unknown) => {
+      handleApiError(err, 'Review Notice', 'Failed to update review')
     },
   })
 
@@ -544,7 +550,7 @@ export const DocumentsCompliance: React.FC = () => {
                   onClick={() => setDetailTab('ocr')}
                   id="tab-doc-ocr"
                 >
-                  OCR Extraction ({docDetail.extractedFields?.length || 0})
+                  Extracted Data ({docDetail.extractedFields?.length || 0})
                 </button>
                 <button
                   type="button"
@@ -692,9 +698,9 @@ export const DocumentsCompliance: React.FC = () => {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <div>
-                      <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Engine: </span>
-                      <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>{docDetail.document.ocrEngine || 'Indra OCR Engine'}</span>
-                      <span style={{ marginLeft: '1rem', fontWeight: 700, fontSize: '0.85rem' }}>Overall Confidence: </span>
+                      <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Verification Method: </span>
+                      <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>Automated Document Verification</span>
+                      <span style={{ marginLeft: '1rem', fontWeight: 700, fontSize: '0.85rem' }}>Statutory Extraction Confidence: </span>
                       <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
                         {docDetail.document.overallConfidence ? `${Math.round(docDetail.document.overallConfidence * 100)}%` : '98%'}
                       </span>

@@ -141,7 +141,7 @@ describe('EVC Scheduling Engine Frontend Workflow', () => {
     expect(
       screen.getByText('AICTE APH 2024–27 Statutory Verification')
     ).toBeInTheDocument()
-    expect(screen.getByText('Google CP-SAT')).toBeInTheDocument()
+    expect(screen.getByText('Statutory Allocation Engine')).toBeInTheDocument()
 
     await waitFor(() => {
       expect(screen.getByText('Delhi Institute of Advanced Engineering')).toBeInTheDocument()

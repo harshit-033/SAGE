@@ -155,8 +155,7 @@ export const EvcScheduling: React.FC = () => {
           </div>
         </div>
         <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          Autonomous multi-day committee dispatch powered by Google OR-Tools CP-SAT constraint optimization.
-          Enforces strict Sunday exclusions, multi-day non-overlapping schedules, and conflict-of-interest isolation.
+          Autonomous multi-day committee dispatch enforcing strict Sunday exclusions, multi-day non-overlapping schedules, and statutory conflict-of-interest isolation.
         </p>
       </div>
 
@@ -248,16 +247,16 @@ export const EvcScheduling: React.FC = () => {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Optimization Solver
+              Panel Allocation Status
             </span>
             <Cpu size={16} color="var(--gov-navy)" />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
             <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--gov-green)' }} />
-            <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--gov-navy)' }}>Google CP-SAT</span>
+            <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--gov-navy)' }}>Statutory Allocation Engine</span>
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Embedded native solver active
+            Statutory panel allocation active
           </div>
         </div>
       </div>
@@ -522,7 +521,7 @@ export const EvcScheduling: React.FC = () => {
                   {scheduleMutation.isPending ? (
                     <>
                       <RefreshCw size={15} className="spin" />
-                      <span>Optimizing with CP-SAT...</span>
+                      <span>Allocating Committee Panels...</span>
                     </>
                   ) : (
                     <>
@@ -1022,7 +1021,7 @@ export const EvcScheduling: React.FC = () => {
                 </div>
               ) : (
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
-                  No committee members assigned yet. This inspection will receive peer evaluators when the CP-SAT engine is executed.
+                  No committee members assigned yet. This inspection will receive peer evaluators when the statutory allocation engine is executed.
                 </div>
               )}
             </div>

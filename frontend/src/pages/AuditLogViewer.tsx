@@ -182,7 +182,7 @@ export const AuditLogViewer: React.FC = () => {
                 id="corr-filter"
                 type="text"
                 className="form-control"
-                placeholder="UUID prefix"
+                placeholder="e.g. c-9f3a8b"
                 value={correlationIdQuery}
                 onChange={(e) => setCorrelationIdQuery(e.target.value)}
               />

@@ -211,29 +211,17 @@ export const Applications: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
           backgroundColor: 'var(--gov-blue-light)',
-          padding: '1rem 1.25rem',
+          padding: '0.85rem 1.25rem',
           borderRadius: 'var(--radius-md)',
           border: '1px solid var(--border-medium)',
-          flexWrap: 'wrap',
-          gap: '1rem',
+          gap: '0.75rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Cpu size={24} color="var(--gov-blue)" style={{ flexShrink: 0 }} />
-          <div style={{ fontSize: '0.85rem', color: 'var(--gov-navy)', lineHeight: 1.5 }}>
-            <strong>How to use OCR and Statutory Workflow:</strong> Click <strong>View Details</strong> on any application below.
-            For instance, open <strong>APP-2024-DEL-001</strong> to inspect extracted Indra OCR fields and APH scrutiny findings, or open <strong>APP-2024-MUM-002</strong> to upload documents and advance the statutory workflow pipeline.
-          </div>
+        <FileCheck2 size={22} color="var(--gov-blue)" style={{ flexShrink: 0 }} />
+        <div style={{ fontSize: '0.85rem', color: 'var(--gov-navy)', lineHeight: 1.5 }}>
+          <strong>Statutory Review &amp; Evaluation:</strong> Select <strong>View Details</strong> on any listed application to review institutional specifications, verify uploaded compliance documents, and execute authoritative workflow transitions.
         </div>
-        <button
-          onClick={() => navigate('/applications/bbbbbbbb-bbbb-bbbb-bbbb-000000000001')}
-          className="btn btn-primary btn-sm"
-          style={{ backgroundColor: 'var(--gov-orange)', color: '#ffffff', whiteSpace: 'nowrap' }}
-        >
-          Open OCR Sample (APP-2024-DEL-001) &rarr;
-        </button>
       </div>
 
       {/* Filters Bar */}

@@ -11,7 +11,7 @@ export const AccessDenied: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center',
         textAlign: 'center',
-        padding: '3rem 1.5rem',
+        padding: '3.5rem 1.5rem',
       }}
     >
       <div
@@ -19,28 +19,28 @@ export const AccessDenied: React.FC = () => {
           width: '64px',
           height: '64px',
           borderRadius: 'var(--radius-md)',
-          backgroundColor: 'var(--status-danger-bg)',
+          backgroundColor: '#fef2f2',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: '1.25rem',
-          border: '1px solid var(--status-danger-border)',
+          border: '1px solid #fca5a5',
         }}
       >
-        <ShieldAlert size={32} color="var(--status-danger-text)" />
+        <ShieldAlert size={32} color="#dc2626" />
       </div>
 
-      <h1 style={{ fontSize: '1.6rem', color: 'var(--gov-navy)', marginBottom: '0.5rem' }}>
-        403 &mdash; Regulatory Access Forbidden
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--gov-navy)', marginBottom: '0.5rem' }}>
+        Access Restricted &mdash; Authorization Required
       </h1>
 
       <p style={{ maxWidth: '520px', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.75rem', lineHeight: 1.5 }}>
-        You do not possess the required regulatory role, institutional tenancy affiliation, or explicit permission to access this resource. All cross-tenant access violations are immutably logged for audit verification.
+        You do not have permission to access this regulatory section or institutional record. If you require access to perform statutory duties, please contact your Regional AICTE Directorate or Central Administration.
       </p>
 
-      <Link to="/dashboard" className="btn btn-secondary" id="return-dashboard-btn">
+      <Link to="/dashboard" className="btn btn-primary" id="return-dashboard-btn">
         <ArrowLeft size={16} />
-        <span>Return to Dashboard</span>
+        <span>Return to Authorized Dashboard</span>
       </Link>
     </div>
   )

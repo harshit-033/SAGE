@@ -6,6 +6,7 @@ import { RegionalDashboard } from '../components/dashboard/RegionalDashboard'
 import { ComplianceDashboard } from '../components/dashboard/ComplianceDashboard'
 import { AuditorDashboard } from '../components/dashboard/AuditorDashboard'
 import { InstitutionDashboard } from '../components/dashboard/InstitutionDashboard'
+import { EvcCoordinatorDashboard } from '../components/dashboard/EvcCoordinatorDashboard'
 
 export const Dashboard: React.FC = () => {
   const { isAdmin, hasRole } = useAuth()
@@ -22,6 +23,9 @@ export const Dashboard: React.FC = () => {
     }
     if (hasRole('ROLE_AUDITOR')) {
       return <AuditorDashboard />
+    }
+    if (hasRole('ROLE_EVC_COORDINATOR')) {
+      return <EvcCoordinatorDashboard />
     }
     // Default institutional signatory dashboard
     return <InstitutionDashboard />

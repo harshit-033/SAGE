@@ -1,7 +1,9 @@
 import React from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { MessageProvider } from './context/MessageContext'
+import { MessageBox } from './components/common/MessageBox'
 import { AppShell } from './components/layout/AppShell'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
@@ -29,11 +31,12 @@ const queryClient = new QueryClient({
   },
 })
 
-const ProtectedRoute: React.FC<{
+export const ProtectedRoute: React.FC<{
   children: React.ReactNode
   requiredRole?: string
-}> = ({ children, requiredRole }) => {
-  const { user, isLoading, hasRole } = useAuth()
+  allowedRoles?: string[]
+}> = ({ children, requiredRole, allowedRoles }) => {
+  const { user, isLoading, hasRole, isAdmin } = useAuth()
 
   if (isLoading) {
     return (
@@ -56,11 +59,46 @@ const ProtectedRoute: React.FC<{
     return <Navigate to="/login" replace />
   }
 
-  if (requiredRole && !hasRole(requiredRole) && !hasRole('ROLE_AICTE_ADMIN')) {
+  if (requiredRole && !hasRole(requiredRole) && !isAdmin) {
+    return <Navigate to="/access-denied" replace />
+  }
+
+  if (allowedRoles && !allowedRoles.some((r) => hasRole(r)) && !isAdmin) {
     return <Navigate to="/access-denied" replace />
   }
 
   return <>{children}</>
+}
+
+/**
+ * Route wrapper for /institutions directory.
+ * If logged-in as an Institution Officer, redirects directly to own institutional profile.
+ */
+const InstitutionsRoute: React.FC = () => {
+  const { user, hasRole, isAdmin } = useAuth()
+  if (hasRole('ROLE_INSTITUTION_OFFICER') && !isAdmin) {
+    const primaryInst = user?.institutions && user.institutions.length > 0 ? user.institutions[0] : null
+    if (primaryInst) {
+      return <Navigate to={`/institutions/${primaryInst}`} replace />
+    }
+    return <Navigate to="/dashboard" replace />
+  }
+  return <Institutions />
+}
+
+/**
+ * Route wrapper for /institutions/:id profile.
+ * Strictly verifies that Institution Officers only access their authorized institution.
+ */
+const InstitutionProfileRoute: React.FC = () => {
+  const { id } = useParams<{ id: string }>()
+  const { user, hasRole, isAdmin } = useAuth()
+  if (hasRole('ROLE_INSTITUTION_OFFICER') && !isAdmin) {
+    if (!id || !user?.institutions || !user.institutions.includes(id)) {
+      return <Navigate to="/access-denied" replace />
+    }
+  }
+  return <InstitutionProfile />
 }
 
 export const AppContent: React.FC = () => {
@@ -77,18 +115,95 @@ export const AppContent: React.FC = () => {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/applications" element={<Applications />} />
-        <Route path="/applications/:id" element={<ApplicationDetails />} />
-        <Route path="/documents-compliance" element={<DocumentsCompliance />} />
-        <Route path="/required-actions" element={<RequiredActions />} />
-        <Route path="/alerts" element={<Alerts />} />
-        <Route path="/compliance" element={<Compliance />} />
-        <Route path="/institutions" element={<Institutions />} />
-        <Route path="/institutions/:id" element={<InstitutionProfile />} />
-        <Route path="/evc" element={<EvcScheduling />} />
-        <Route path="/evc/schedule" element={<EvcScheduling />} />
 
-        {/* Administrative Only Routes */}
+        {/* Applications & Scrutiny: Admin, Regional, Institution, Auditor */}
+        <Route
+          path="/applications"
+          element={
+            <ProtectedRoute allowedRoles={['ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_INSTITUTION_OFFICER', 'ROLE_AUDITOR']}>
+              <Applications />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/applications/:id"
+          element={
+            <ProtectedRoute allowedRoles={['ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_INSTITUTION_OFFICER', 'ROLE_AUDITOR']}>
+              <ApplicationDetails />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Documents & Compliance: Admin, Regional, Institution, Compliance, Auditor */}
+        <Route
+          path="/documents-compliance"
+          element={
+            <ProtectedRoute allowedRoles={['ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_INSTITUTION_OFFICER', 'ROLE_COMPLIANCE_OFFICER', 'ROLE_AUDITOR']}>
+              <DocumentsCompliance />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Required Actions: Admin, Regional, Institution, Compliance */}
+        <Route
+          path="/required-actions"
+          element={
+            <ProtectedRoute allowedRoles={['ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_INSTITUTION_OFFICER', 'ROLE_COMPLIANCE_OFFICER']}>
+              <RequiredActions />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Regulatory Alerts: All authenticated roles */}
+        <Route path="/alerts" element={<Alerts />} />
+
+        {/* Compliance & Surveillance: Admin, Compliance, Auditor */}
+        <Route
+          path="/compliance"
+          element={
+            <ProtectedRoute allowedRoles={['ROLE_AICTE_ADMIN', 'ROLE_COMPLIANCE_OFFICER', 'ROLE_AUDITOR']}>
+              <Compliance />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Institutions Directory: Admin, Regional, Compliance, Auditor, Institution (redirected) */}
+        <Route
+          path="/institutions"
+          element={
+            <ProtectedRoute allowedRoles={['ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_COMPLIANCE_OFFICER', 'ROLE_AUDITOR', 'ROLE_INSTITUTION_OFFICER']}>
+              <InstitutionsRoute />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/institutions/:id"
+          element={
+            <ProtectedRoute allowedRoles={['ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_COMPLIANCE_OFFICER', 'ROLE_AUDITOR', 'ROLE_INSTITUTION_OFFICER']}>
+              <InstitutionProfileRoute />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* EVC Panel Allocation: Admin, Regional, EVC Coordinator */}
+        <Route
+          path="/evc"
+          element={
+            <ProtectedRoute allowedRoles={['ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_EVC_COORDINATOR']}>
+              <EvcScheduling />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evc/schedule"
+          element={
+            <ProtectedRoute allowedRoles={['ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_EVC_COORDINATOR']}>
+              <EvcScheduling />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Central Administrative Governance */}
         <Route
           path="/admin/users"
           element={
@@ -100,12 +215,11 @@ export const AppContent: React.FC = () => {
         <Route
           path="/admin/audit"
           element={
-            <ProtectedRoute requiredRole="ROLE_AUDITOR">
+            <ProtectedRoute allowedRoles={['ROLE_AICTE_ADMIN', 'ROLE_AUDITOR']}>
               <AuditLogViewer />
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/system-health"
           element={
@@ -114,6 +228,7 @@ export const AppContent: React.FC = () => {
             </ProtectedRoute>
           }
         />
+
         <Route path="/access-denied" element={<AccessDenied />} />
         <Route path="*" element={<NotFound />} />
       </Route>
@@ -125,9 +240,12 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
+        <MessageProvider>
+          <BrowserRouter>
+            <AppContent />
+            <MessageBox />
+          </BrowserRouter>
+        </MessageProvider>
       </AuthProvider>
     </QueryClientProvider>
   )

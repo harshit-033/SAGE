@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { documentComplianceApi, type DocumentCorrectiveActionDto } from '../api/documentComplianceApi'
 import { useAuth } from '../context/AuthContext'
+import { useMessage } from '../context/MessageContext'
 import { Modal } from '../components/common/Modal'
 import {
   CheckCircle2,
@@ -13,6 +14,7 @@ import {
 export const RequiredActions: React.FC = () => {
   const queryClient = useQueryClient()
   const { user, hasRole, isAdmin } = useAuth()
+  const { showSuccess, handleApiError } = useMessage()
   const institutionId = user?.institutions?.[0]
   const isOfficer = isAdmin || hasRole('ROLE_REGIONAL_OFFICER') || hasRole('ROLE_COMPLIANCE_OFFICER')
 
@@ -55,9 +57,10 @@ export const RequiredActions: React.FC = () => {
       setSelectedAction(null)
       setResponseNotes('')
       setRespondError(null)
+      showSuccess('Response Submitted', 'Your clarification response has been submitted for regulatory review.')
     },
-    onError: (err: any) => {
-      setRespondError(err.message || 'Failed to submit response')
+    onError: (err: unknown) => {
+      handleApiError(err, 'Submission Notice', 'Failed to submit response')
     },
   })
 
@@ -75,9 +78,10 @@ export const RequiredActions: React.FC = () => {
       setIsResolveModalOpen(false)
       setSelectedAction(null)
       setOfficerNotes('')
+      showSuccess('Action Resolved', 'The corrective action status has been authoritatively updated.')
     },
-    onError: (err: any) => {
-      alert(err.message || 'Failed to resolve action')
+    onError: (err: unknown) => {
+      handleApiError(err, 'Resolution Notice', 'Failed to resolve action')
     },
   })
 

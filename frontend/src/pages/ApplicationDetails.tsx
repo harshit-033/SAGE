@@ -9,6 +9,7 @@ import {
   type BranchDetailsDto,
 } from '../api/applicationsApi'
 import { useAuth } from '../context/AuthContext'
+import { useMessage } from '../context/MessageContext'
 import { StatusBadge } from '../components/common/StatusBadge'
 import { Modal } from '../components/common/Modal'
 import {
@@ -29,19 +30,12 @@ import {
   Save,
 } from 'lucide-react'
 
-interface ApiErrorResponse {
-  response?: {
-    data?: {
-      detail?: string
-    }
-  }
-}
-
 export const ApplicationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { hasRole, isAdmin } = useAuth()
+  const { showSuccess, handleApiError } = useMessage()
 
   const [activeTab, setActiveTab] = useState<'specification' | 'documents' | 'scrutiny' | 'workflow'>('specification')
 
@@ -104,10 +98,10 @@ export const ApplicationDetails: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['application-documents', id] })
       setUploadFile(null)
       setUploadError(null)
+      showSuccess('Document Uploaded', 'Document successfully uploaded and queued for regulatory verification.')
     },
     onError: (err: unknown) => {
-      const e = err as ApiErrorResponse
-      setUploadError(e.response?.data?.detail || 'Failed to upload document')
+      handleApiError(err, 'Upload Notice', 'Failed to upload document')
     },
   })
 
@@ -115,6 +109,10 @@ export const ApplicationDetails: React.FC = () => {
     mutationFn: (docId: string) => applicationsApi.reprocessOcr(id!, docId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['application-documents', id] })
+      showSuccess('Extraction Initiated', 'Re-extraction of document fields has commenced.')
+    },
+    onError: (err: unknown) => {
+      handleApiError(err, 'Extraction Notice', 'Failed to re-extract document fields')
     },
   })
 
@@ -124,6 +122,10 @@ export const ApplicationDetails: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['application-findings', id] })
       queryClient.invalidateQueries({ queryKey: ['application', id] })
       setActiveTab('scrutiny')
+      showSuccess('Scrutiny Completed', 'Automated regulatory scrutiny checks have been re-evaluated.')
+    },
+    onError: (err: unknown) => {
+      handleApiError(err, 'Scrutiny Notice', 'Failed to evaluate scrutiny')
     },
   })
 
@@ -135,10 +137,10 @@ export const ApplicationDetails: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['application', id] })
       setResolvingFinding(null)
       setResolutionNotes('')
+      showSuccess('Finding Resolved', 'Your resolution justification has been recorded.')
     },
     onError: (err: unknown) => {
-      const e = err as ApiErrorResponse
-      setResolveError(e.response?.data?.detail || 'Failed to resolve finding')
+      handleApiError(err, 'Resolution Notice', 'Failed to resolve finding')
     },
   })
 
@@ -147,6 +149,10 @@ export const ApplicationDetails: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['application', id] })
       queryClient.invalidateQueries({ queryKey: ['application-transitions', id] })
+      showSuccess('Application Submitted', 'Your application has been submitted successfully. You can track its progress from the Applications section.')
+    },
+    onError: (err: unknown) => {
+      handleApiError(err, 'Submission Notice', 'Failed to submit application')
     },
   })
 
@@ -158,10 +164,10 @@ export const ApplicationDetails: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['application-transitions', id] })
       setIsTransitionModalOpen(false)
       setTransitionReason('')
+      showSuccess('State Transition Completed', 'The application lifecycle state was updated successfully.')
     },
     onError: (err: unknown) => {
-      const e = err as ApiErrorResponse
-      setTransitionError(e.response?.data?.detail || 'Transition rejected')
+      handleApiError(err, 'Workflow Notice', 'Transition could not be executed')
     },
   })
 
@@ -950,7 +956,7 @@ export const ApplicationDetails: React.FC = () => {
 
               <div style={{ flex: '1.5', minWidth: '250px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                  Select PDF or Scan File (Max 15MB, Verified Magic Bytes)
+                  Select Document File (PDF, PNG, JPEG up to 15MB)
                 </label>
                 <input
                   type="file"
@@ -976,7 +982,7 @@ export const ApplicationDetails: React.FC = () => {
                 }}
               >
                 <Upload size={15} />
-                <span>{uploadMutation.isPending ? 'Processing OCR...' : 'Upload & Scrutinize'}</span>
+                <span>{uploadMutation.isPending ? 'Verifying Document...' : 'Upload & Verify'}</span>
               </button>
             </form>
           </div>
@@ -995,7 +1001,7 @@ export const ApplicationDetails: React.FC = () => {
               >
                 <FileText size={32} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  No documents uploaded yet. Upload mandatory certificates above to trigger Indra OCR scrutiny.
+                  No documents uploaded yet. Upload mandatory certificates above to initiate regulatory verification.
                 </p>
               </div>
             ) : (
@@ -1033,12 +1039,12 @@ export const ApplicationDetails: React.FC = () => {
                         </span>
                       </div>
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.2rem', fontFamily: 'monospace' }}>
-                        SHA-256: {doc.sha256Hash} • {(doc.fileSizeBytes / 1024).toFixed(1)} KB
+                        Document Hash: {doc.sha256Hash ? doc.sha256Hash.substring(0, 16) + '...' : 'Verified'} • {(doc.fileSizeBytes / 1024).toFixed(1)} KB
                       </p>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      {/* OCR Engine Badge */}
+                      {/* Automated Verification Badge */}
                       <div
                         style={{
                           display: 'flex',
@@ -1046,17 +1052,17 @@ export const ApplicationDetails: React.FC = () => {
                           gap: '0.35rem',
                           padding: '0.3rem 0.6rem',
                           borderRadius: 'var(--radius-xs)',
-                          backgroundColor: '#f3e8ff',
-                          color: '#6b21a8',
+                          backgroundColor: '#f1f5f9',
+                          color: 'var(--gov-navy)',
                           fontSize: '0.75rem',
                           fontWeight: 700,
                         }}
                       >
-                        <Cpu size={14} />
-                        <span>{doc.ocrEngine || 'Indra OCR'}</span>
+                        <ShieldCheck size={14} color="var(--gov-blue)" />
+                        <span>Automated Verification</span>
                       </div>
 
-                      {/* OCR Confidence Badge */}
+                      {/* Extraction Confidence Badge */}
                       <div
                         style={{
                           padding: '0.3rem 0.6rem',
@@ -1073,12 +1079,12 @@ export const ApplicationDetails: React.FC = () => {
                       <button
                         onClick={() => reprocessOcrMutation.mutate(doc.id)}
                         disabled={reprocessOcrMutation.isPending}
-                        title="Rerun Indra OCR analysis"
+                        title="Re-extract Document Details"
                         className="btn btn-outline"
                         style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
                       >
                         <RefreshCw size={12} />
-                        <span>Rerun OCR</span>
+                        <span>Re-extract</span>
                       </button>
                     </div>
                   </div>
@@ -1094,7 +1100,7 @@ export const ApplicationDetails: React.FC = () => {
                       }}
                     >
                       <h5 style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-                        Structured Fields Extracted by Indra OCR (with Provenance)
+                        Extracted Regulatory Fields (with Document Provenance)
                       </h5>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.65rem' }}>
                         {doc.extractedFields.map((f) => (

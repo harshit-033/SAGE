@@ -16,8 +16,13 @@ import {
 } from 'lucide-react'
 
 export const Sidebar: React.FC = () => {
-  const { isAdmin, hasRole } = useAuth()
-  const showAdminSection = isAdmin || hasRole('ROLE_AUDITOR')
+  const { user, isAdmin, hasRole } = useAuth()
+
+  const isRegional = hasRole('ROLE_REGIONAL_OFFICER')
+  const isInstitution = hasRole('ROLE_INSTITUTION_OFFICER')
+  const isCompliance = hasRole('ROLE_COMPLIANCE_OFFICER')
+  const isAuditor = hasRole('ROLE_AUDITOR')
+  const isEvc = hasRole('ROLE_EVC_COORDINATOR')
 
   const getNavLinkStyle = ({ isActive }: { isActive: boolean }) => ({
     display: 'flex',
@@ -32,6 +37,21 @@ export const Sidebar: React.FC = () => {
     textDecoration: 'none',
     transition: 'background-color 0.15s ease, color 0.15s ease',
   })
+
+  // Determine role-specific portal heading
+  const getSectionTitle = () => {
+    if (isAdmin) return 'Central Governance'
+    if (isRegional) return 'Regional Directorate'
+    if (isInstitution) return 'Institutional Portal'
+    if (isCompliance) return 'Compliance Directorate'
+    if (isAuditor) return 'Statutory Oversight'
+    if (isEvc) return 'Inspection Operations'
+    return 'Portal Modules'
+  }
+
+  // Primary institution profile URL for institution officers
+  const primaryInstitutionId = user?.institutions && user.institutions.length > 0 ? user.institutions[0] : null
+  const institutionProfileUrl = primaryInstitutionId ? `/institutions/${primaryInstitutionId}` : '/institutions'
 
   return (
     <aside
@@ -48,7 +68,7 @@ export const Sidebar: React.FC = () => {
       aria-label="Sidebar Navigation"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {/* Portal Modules Category */}
+        {/* Role-Specific Portal Section */}
         <div>
           <div
             style={{
@@ -60,53 +80,110 @@ export const Sidebar: React.FC = () => {
               letterSpacing: '0.05em',
             }}
           >
-            Portal Modules
+            {getSectionTitle()}
           </div>
+
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.35rem' }}>
+            {/* Dashboard: All authorized roles */}
             <NavLink to="/dashboard" style={getNavLinkStyle} id="sidebar-nav-dashboard">
               <LayoutDashboard size={16} />
-              <span>Dashboard</span>
+              <span>
+                {isRegional
+                  ? 'Regional Dashboard'
+                  : isInstitution
+                  ? 'Institution Dashboard'
+                  : isCompliance
+                  ? 'Compliance Dashboard'
+                  : isAuditor
+                  ? 'Audit Dashboard'
+                  : isEvc
+                  ? 'EVC Dashboard'
+                  : 'Dashboard'}
+              </span>
             </NavLink>
 
-            <NavLink to="/applications" style={getNavLinkStyle} id="sidebar-nav-applications">
-              <FileCheck size={16} />
-              <span>Applications &amp; Scrutiny</span>
-            </NavLink>
+            {/* Institution Officer: My Institution Profile */}
+            {isInstitution && (
+              <NavLink to={institutionProfileUrl} style={getNavLinkStyle} id="sidebar-nav-my-institution">
+                <Building2 size={16} />
+                <span>My Institution</span>
+              </NavLink>
+            )}
 
-            <NavLink to="/documents-compliance" style={getNavLinkStyle} id="sidebar-nav-documents-compliance">
-              <FileCheck size={16} />
-              <span>Documents &amp; Compliance</span>
-            </NavLink>
+            {/* Applications & Scrutiny: Admin, Regional, Institution, Auditor */}
+            {(isAdmin || isRegional || isInstitution || isAuditor) && (
+              <NavLink to="/applications" style={getNavLinkStyle} id="sidebar-nav-applications">
+                <FileCheck size={16} />
+                <span>
+                  {isInstitution
+                    ? 'My Applications'
+                    : isAuditor
+                    ? 'Applications Review'
+                    : isRegional
+                    ? 'Regional Applications'
+                    : 'Applications & Scrutiny'}
+                </span>
+              </NavLink>
+            )}
 
-            <NavLink to="/required-actions" style={getNavLinkStyle} id="sidebar-nav-required-actions">
-              <ShieldAlert size={16} />
-              <span>Required Actions</span>
-            </NavLink>
+            {/* Documents & Compliance: Admin, Regional, Institution, Compliance, Auditor */}
+            {(isAdmin || isRegional || isInstitution || isCompliance || isAuditor) && (
+              <NavLink to="/documents-compliance" style={getNavLinkStyle} id="sidebar-nav-documents-compliance">
+                <FileCheck size={16} />
+                <span>
+                  {isInstitution
+                    ? 'Document Compliance'
+                    : isAuditor
+                    ? 'Document Registry'
+                    : 'Documents & Compliance'}
+                </span>
+              </NavLink>
+            )}
 
-            <NavLink to="/compliance" style={getNavLinkStyle} id="sidebar-nav-compliance">
-              <Clock size={16} />
-              <span>Compliance &amp; Deadlines</span>
-            </NavLink>
+            {/* Required Actions: Admin, Regional, Institution, Compliance */}
+            {(isAdmin || isRegional || isInstitution || isCompliance) && (
+              <NavLink to="/required-actions" style={getNavLinkStyle} id="sidebar-nav-required-actions">
+                <ShieldAlert size={16} />
+                <span>Required Actions</span>
+              </NavLink>
+            )}
 
-            <NavLink to="/alerts" style={getNavLinkStyle} id="sidebar-nav-alerts">
-              <Bell size={16} />
-              <span>Regulatory Alerts</span>
-            </NavLink>
+            {/* Compliance & Deadlines: Admin, Compliance, Auditor */}
+            {(isAdmin || isCompliance || isAuditor) && (
+              <NavLink to="/compliance" style={getNavLinkStyle} id="sidebar-nav-compliance">
+                <Clock size={16} />
+                <span>{isAuditor ? 'Compliance Surveillance' : 'Compliance & Deadlines'}</span>
+              </NavLink>
+            )}
 
-            <NavLink to="/institutions" style={getNavLinkStyle} id="sidebar-nav-institutions">
-              <Building2 size={16} />
-              <span>Institutions Directory</span>
-            </NavLink>
+            {/* Regulatory Alerts: Admin, Regional, Institution, Compliance, EVC */}
+            {(isAdmin || isRegional || isInstitution || isCompliance || isEvc) && (
+              <NavLink to="/alerts" style={getNavLinkStyle} id="sidebar-nav-alerts">
+                <Bell size={16} />
+                <span>Regulatory Alerts</span>
+              </NavLink>
+            )}
 
-            <NavLink to="/evc" style={getNavLinkStyle} id="sidebar-nav-evc">
-              <CalendarCheck size={16} />
-              <span>EVC Scheduling</span>
-            </NavLink>
+            {/* Institutions Directory: Admin, Regional, Compliance, Auditor (HIDDEN for Institution Officers & EVC) */}
+            {(isAdmin || isRegional || isCompliance || isAuditor) && (
+              <NavLink to="/institutions" style={getNavLinkStyle} id="sidebar-nav-institutions">
+                <Building2 size={16} />
+                <span>{isRegional ? 'Regional Institutions' : 'Institutions Directory'}</span>
+              </NavLink>
+            )}
+
+            {/* EVC Scheduling / Inspections: Admin, Regional, EVC Coordinator (HIDDEN for Institution, Compliance, Auditor) */}
+            {(isAdmin || isRegional || isEvc) && (
+              <NavLink to="/evc" style={getNavLinkStyle} id="sidebar-nav-evc">
+                <CalendarCheck size={16} />
+                <span>{isEvc ? 'Panel Allocation' : 'EVC Scheduling'}</span>
+              </NavLink>
+            )}
           </nav>
         </div>
 
-        {/* Administration Category - Strict RBAC Visibility */}
-        {showAdminSection && (
+        {/* System Administration & Statutory Audit - Strict RBAC Visibility */}
+        {(isAdmin || isAuditor) && (
           <div>
             <div
               style={{
@@ -118,7 +195,7 @@ export const Sidebar: React.FC = () => {
                 letterSpacing: '0.05em',
               }}
             >
-              System Administration
+              {isAdmin ? 'System Governance' : 'Statutory Audit'}
             </div>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.35rem' }}>
               {isAdmin && (
@@ -128,7 +205,7 @@ export const Sidebar: React.FC = () => {
                 </NavLink>
               )}
 
-              {(isAdmin || hasRole('ROLE_AUDITOR')) && (
+              {(isAdmin || isAuditor) && (
                 <NavLink to="/admin/audit" style={getNavLinkStyle} id="sidebar-nav-audit">
                   <ShieldAlert size={16} />
                   <span>Regulatory Audit Trail</span>
@@ -138,7 +215,7 @@ export const Sidebar: React.FC = () => {
               {isAdmin && (
                 <NavLink to="/system-health" style={getNavLinkStyle} id="sidebar-nav-system-health">
                   <Server size={16} />
-                  <span>System Diagnostics</span>
+                  <span>Platform Operations</span>
                 </NavLink>
               )}
             </nav>

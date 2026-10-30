@@ -52,10 +52,6 @@ export const Institutions: React.FC = () => {
   const [statusReason, setStatusReason] = useState('')
   const [togglingStatus, setTogglingStatus] = useState(false)
 
-  // Security Test Tool State
-  const [testingCrossTenant, setTestingCrossTenant] = useState(false)
-  const [crossTenantTestResult, setCrossTenantTestResult] = useState<string | null>(null)
-
   const fetchInstitutions = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -134,32 +130,6 @@ export const Institutions: React.FC = () => {
     }
   }
 
-  // Cross-tenant security check test
-  const handleTestCrossTenantViolation = async () => {
-    setTestingCrossTenant(true)
-    setCrossTenantTestResult(null)
-    try {
-      const mumbaiId = '33333333-3333-3333-3333-333333333333'
-      await institutionsApi.getInstitutionById(mumbaiId)
-      if (isAdmin) {
-        setCrossTenantTestResult('Admin verified: AICTE Central Administrator has global regulatory authorization.')
-      } else {
-        setCrossTenantTestResult('Warning: Unexpected cross-tenant access.')
-      }
-    } catch (err: unknown) {
-      const errorObj = err as { problem?: { status?: number; detail?: string }; message?: string }
-      if (errorObj?.problem?.status === 403) {
-        setCrossTenantTestResult(
-          `Security Boundary Confirmed: Backend rejected unauthorized cross-tenant inspection with HTTP 403 Forbidden. Details: "${errorObj.problem.detail}". Violation audit event recorded.`
-        )
-      } else {
-        setCrossTenantTestResult(`Request failed: ${errorObj?.message || 'Unknown error'}`)
-      }
-    } finally {
-      setTestingCrossTenant(false)
-    }
-  }
-
   return (
     <div>
       <Breadcrumbs items={[{ label: 'Institutions' }]} />
@@ -214,50 +184,6 @@ export const Institutions: React.FC = () => {
           {error}
         </Alert>
       )}
-
-      {/* Cross-Tenant Isolation Probe Banner */}
-      <div
-        className="gov-card"
-        style={{
-          borderLeft: '4px solid var(--gov-blue)',
-          backgroundColor: 'var(--bg-surface-secondary)',
-          marginBottom: '1rem',
-        }}
-      >
-        <div style={{ padding: '0.85rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--gov-navy)', fontWeight: 700, fontSize: '0.875rem' }}>
-              <ShieldAlert size={16} color="var(--gov-blue)" />
-              <span>Tenancy Boundary Verification Probe</span>
-            </div>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-              Verify automated enforcement of tenant isolation by probing an out-of-tenancy institution record.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={handleTestCrossTenantViolation}
-            disabled={testingCrossTenant}
-            id="test-tenancy-guard-btn"
-          >
-            {testingCrossTenant ? 'Probing...' : 'Probe Cross-Tenant Access'}
-          </button>
-        </div>
-
-        {crossTenantTestResult && (
-          <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-light)' }}>
-            <div
-              className={`gov-alert ${crossTenantTestResult.includes('Security Boundary Confirmed') ? 'gov-alert-success' : 'gov-alert-info'}`}
-              style={{ margin: 0, padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}
-            >
-              <CheckCircle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
-              <span>{crossTenantTestResult}</span>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Search and Filters Form */}
       <div className="gov-card" style={{ marginBottom: '1.25rem' }}>

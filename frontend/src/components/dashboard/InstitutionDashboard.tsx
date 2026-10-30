@@ -86,7 +86,7 @@ export const InstitutionDashboard: React.FC = () => {
                 )}
               </div>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '0.25rem 0 0.5rem 0' }}>
-                Authorized Institutional Representative: <strong>{user?.fullName}</strong> &bull; Institutional Tenancy ID: {institutionId ? institutionId.slice(0, 8) + '...' : 'Not Linked'}
+                Authorized Institutional Representative: <strong>{user?.fullName}</strong> &bull; AICTE Permanent ID: {institution?.code || (institutionId ? institutionId.slice(0, 8).toUpperCase() : 'Registered')}
               </p>
               {institution && (
                 <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
