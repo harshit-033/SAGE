@@ -51,6 +51,9 @@ cleanup() {
   # Fallback check for lingering port listeners
   sleep 1
   for PORT in 5173 8080 8000; do
+    if command -v fuser >/dev/null 2>&1; then
+      fuser -k -9 "${PORT}/tcp" 2>/dev/null || true
+    fi
     PIDS="$(lsof -ti :${PORT} 2>/dev/null || true)"
     if [ -n "${PIDS}" ]; then
       kill -9 ${PIDS} 2>/dev/null || true
@@ -107,11 +110,19 @@ chmod +x "${ROOT_DIR}/backend/run.sh" 2>/dev/null || true
 
 # Check ports
 for PORT in 8000 8080 5173; do
-  EXISTING="$(lsof -ti :${PORT} 2>/dev/null || true)"
-  if [ -n "${EXISTING}" ]; then
-    echo -e "  ${SAFFRON}! Port ${PORT} currently occupied. Freeing port...${NC}"
-    kill -9 ${EXISTING} 2>/dev/null || true
-    sleep 0.5
+  if command -v fuser >/dev/null 2>&1; then
+    if fuser "${PORT}/tcp" >/dev/null 2>&1; then
+      echo -e "  ${SAFFRON}! Port ${PORT} currently occupied. Freeing port...${NC}"
+      fuser -k -9 "${PORT}/tcp" 2>/dev/null || true
+      sleep 0.5
+    fi
+  else
+    EXISTING="$(lsof -ti :${PORT} 2>/dev/null || true)"
+    if [ -n "${EXISTING}" ]; then
+      echo -e "  ${SAFFRON}! Port ${PORT} currently occupied. Freeing port...${NC}"
+      kill -9 ${EXISTING} 2>/dev/null || true
+      sleep 0.5
+    fi
   fi
 done
 

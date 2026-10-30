@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Activity,
   Bell,
+  CalendarCheck,
 } from 'lucide-react'
 
 export const AdminDashboard: React.FC = () => {
@@ -97,6 +98,10 @@ export const AdminDashboard: React.FC = () => {
               <Link to="/system-health" className="btn btn-secondary btn-sm" id="admin-dash-probes-btn">
                 <Server size={14} />
                 <span>System Diagnostics</span>
+              </Link>
+              <Link to="/evc" className="btn btn-secondary btn-sm" id="admin-dash-evc-btn">
+                <CalendarCheck size={14} />
+                <span>EVC Scheduling</span>
               </Link>
             </div>
           </div>

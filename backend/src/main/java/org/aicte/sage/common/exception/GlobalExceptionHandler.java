@@ -162,6 +162,34 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(details);
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ProblemDetails> handleNoResourceFound(org.springframework.web.servlet.resource.NoResourceFoundException ex, HttpServletRequest request) {
+        String correlationId = CorrelationIdFilter.getCurrentCorrelationId();
+        ProblemDetails details = new ProblemDetails(
+                URI.create("https://api.aicte.gov.in/errors/not-found"),
+                "Endpoint Not Found",
+                HttpStatus.NOT_FOUND.value(),
+                "The requested resource or endpoint '" + request.getRequestURI() + "' was not found.",
+                request.getRequestURI(),
+                correlationId
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(details);
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ProblemDetails> handleHttpMessageNotReadable(org.springframework.http.converter.HttpMessageNotReadableException ex, HttpServletRequest request) {
+        String correlationId = CorrelationIdFilter.getCurrentCorrelationId();
+        ProblemDetails details = new ProblemDetails(
+                URI.create("https://api.aicte.gov.in/errors/bad-request"),
+                "Malformed Request Payload",
+                HttpStatus.BAD_REQUEST.value(),
+                "The request body is invalid, malformed, or contains unrecognized values.",
+                request.getRequestURI(),
+                correlationId
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(details);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ProblemDetails> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
         String correlationId = CorrelationIdFilter.getCurrentCorrelationId();

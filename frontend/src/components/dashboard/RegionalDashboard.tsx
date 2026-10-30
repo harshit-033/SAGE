@@ -15,6 +15,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Compass,
+  CalendarCheck,
 } from 'lucide-react'
 
 export const RegionalDashboard: React.FC = () => {
@@ -96,6 +97,10 @@ export const RegionalDashboard: React.FC = () => {
               <Link to="/alerts" className="btn btn-secondary btn-sm" id="reg-dash-escalations-btn">
                 <Bell size={14} />
                 <span>Supervisory Alerts</span>
+              </Link>
+              <Link to="/evc" className="btn btn-secondary btn-sm" id="reg-dash-evc-btn">
+                <CalendarCheck size={14} />
+                <span>EVC Scheduling</span>
               </Link>
             </div>
           </div>

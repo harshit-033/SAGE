@@ -1,0 +1,20 @@
+package org.aicte.sage.modules.evc.repository;
+
+import org.aicte.sage.modules.evc.entity.Expert;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.UUID;
+
+@Repository
+public interface ExpertRepository extends JpaRepository<Expert, UUID> {
+
+    List<Expert> findByActiveTrue();
+
+    List<Expert> findByDisciplineAndActiveTrue(String discipline);
+
+    Page<Expert> findByActiveTrue(Pageable pageable);
+}

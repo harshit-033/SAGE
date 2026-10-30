@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EVC Scheduling Engine — Dev Dashboard</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="brand">
+        <h1>EVC Scheduling Engine</h1>
+        <p>Interactive Developer Testbed &bull; AICTE / SAGE Visiting Committee Scheduler</p>
+      </div>
+      <div class="badge-group">
+        <span class="badge badge-dev">Profile: dev-dashboard</span>
+        <span class="badge badge-engine">Google OR-Tools CP-SAT</span>
+      </div>
+    </header>
+
+    <!-- Metrics Cards -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <span class="metric-label">Total Inspections</span>
+        <span class="metric-value" id="metric-total-inspections">0</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Assignments Requested</span>
+        <span class="metric-value" id="metric-total-assignments">0</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Scheduled Count</span>
+        <span class="metric-value" id="metric-scheduled-count">0</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Engine Status</span>
+        <div id="metric-status-container">
+          <span class="status-badge status-idle" id="metric-solver-status">IDLE</span>
+        </div>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Solve Time</span>
+        <span class="metric-value" id="metric-solve-time">—</span>
+      </div>
+    </div>
+
+    <!-- Scenarios Section -->
+    <div class="card">
+      <div class="card-title">
+        <span>One-Click Test Scenarios</span>
+        <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">Loaded from /dev/dashboard/api/scenarios</span>
+      </div>
+      <div class="scenario-grid" id="scenario-container">
+        <!-- Dynamically populated or fallback -->
+        <button type="button" class="btn-scenario" data-scenario="scenario-1">
+          <span class="scenario-title">1. Dynamic Durations &amp; Sizes</span>
+          <span class="scenario-desc">Feasible: 3 vs 4 days, 2 vs 3 members</span>
+        </button>
+        <button type="button" class="btn-scenario" data-scenario="scenario-2">
+          <span class="scenario-title">2. Shared Expert Conflict</span>
+          <span class="scenario-desc">Feasible: Shared EXP-01 forces staggered dates</span>
+        </button>
+        <button type="button" class="btn-scenario" data-scenario="scenario-3">
+          <span class="scenario-title">3. Pool Deficiency</span>
+          <span class="scenario-desc">Infeasible: Needs 3 experts, only 2 eligible</span>
+        </button>
+        <button type="button" class="btn-scenario" data-scenario="scenario-4">
+          <span class="scenario-title">4. Blackout Infeasibility</span>
+          <span class="scenario-desc">Infeasible: Mid-window blackout breaks block</span>
+        </button>
+        <button type="button" class="btn-scenario" data-scenario="scenario-5">
+          <span class="scenario-title">5. Multi-Day Span &amp; Ends</span>
+          <span class="scenario-desc">Feasible: 2, 3, and 5-day inspections</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Solver Configuration & Actions -->
+    <div class="card">
+      <div class="card-title">
+        <span>Scheduler Problem Input</span>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label for="time-limit-input" style="font-size: 0.8rem; color: var(--text-muted);">Solver Limit (sec):</label>
+            <input type="number" id="time-limit-input" min="1" max="30" value="5" style="width: 70px; padding: 0.3rem 0.5rem;">
+          </div>
+          <button type="button" class="btn btn-secondary" id="btn-reset">Reset</button>
+          <button type="button" class="btn" id="btn-solve">
+            <span id="btn-solve-text">Solve Schedule (CP-SAT)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Inspections Editor Column -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h3 style="font-size: 0.95rem; color: var(--accent);">EVC Inspections</h3>
+            <button type="button" class="btn btn-secondary" id="btn-add-inspection" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">+ Add Inspection</button>
+          </div>
+          <div id="inspections-list">
+            <!-- Inspection items populated here -->
+          </div>
+        </div>
+
+        <!-- Expert Availability Column -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h3 style="font-size: 0.95rem; color: var(--purple);">Expert Availability Pool</h3>
+            <button type="button" class="btn btn-secondary" id="btn-add-expert" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">+ Add Expert</button>
+          </div>
+          <div id="experts-list">
+            <!-- Expert availability items populated here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="card" id="results-card">
+      <div class="card-title">
+        <span>Solver Results &amp; Schedule Overview</span>
+        <span id="results-summary-badge" class="badge badge-dev" style="display: none;"></span>
+      </div>
+
+      <!-- Diagnostics Alert -->
+      <div id="diagnostics-alert" class="alert" style="display: none;">
+        <strong id="diagnostics-title">Status</strong>
+        <span id="diagnostics-message">Explanation message</span>
+      </div>
+
+      <!-- Schedule Table -->
+      <div class="table-wrapper" id="table-wrapper" style="display: none;">
+        <table>
+          <thead>
+            <tr>
+              <th>Inspection ID</th>
+              <th>Duration</th>
+              <th>Committee Size</th>
+              <th>Start Date</th>
+              <th>Inclusive End Date</th>
+              <th>Assigned Experts</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="schedule-tbody">
+            <!-- Rows rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Visual Timeline / Gantt -->
+      <div class="timeline-container" id="timeline-container" style="display: none;">
+        <h4 style="font-size: 0.85rem; margin-bottom: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Visual Schedule Horizon</h4>
+        <div id="timeline-chart">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Raw Payload Toggle -->
+      <div style="margin-top: 1.5rem;">
+        <details>
+          <summary style="cursor: pointer; font-size: 0.8rem; color: var(--text-muted); user-select: none;">Toggle Raw JSON Response</summary>
+          <pre class="code-box" id="raw-json" style="margin-top: 0.5rem;">{ "status": "NO_RUN_YET" }</pre>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+

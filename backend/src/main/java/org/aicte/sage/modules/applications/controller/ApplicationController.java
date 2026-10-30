@@ -89,7 +89,7 @@ public class ApplicationController {
     }
 
     @PostMapping("/{id}/transitions")
-    @PreAuthorize("hasAnyRole('ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_COMMITTEE_MEMBER') or hasAuthority('WORKFLOW_TRANSITION')")
+    @PreAuthorize("hasAnyRole('ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_COMMITTEE_MEMBER', 'ROLE_INSTITUTION_OFFICER') or hasAuthority('WORKFLOW_TRANSITION') or hasAuthority('APPLICATION_SUBMIT')")
     @Operation(summary = "Execute state transition", description = "Performs an authorized statutory workflow transition")
     public ResponseEntity<ApiResponse<WorkflowTransitionDto>> transitionState(
             @PathVariable UUID id,

@@ -14,6 +14,7 @@ import { Applications } from './pages/Applications'
 import { ApplicationDetails } from './pages/ApplicationDetails'
 import { Alerts } from './pages/Alerts'
 import { Compliance } from './pages/Compliance'
+import { EvcScheduling } from './pages/EvcScheduling'
 import { AccessDenied } from './pages/AccessDenied'
 import { NotFound } from './pages/NotFound'
 
@@ -80,6 +81,8 @@ export const AppContent: React.FC = () => {
         <Route path="/compliance" element={<Compliance />} />
         <Route path="/institutions" element={<Institutions />} />
         <Route path="/institutions/:id" element={<InstitutionProfile />} />
+        <Route path="/evc" element={<EvcScheduling />} />
+        <Route path="/evc/schedule" element={<EvcScheduling />} />
 
         {/* Administrative Only Routes */}
         <Route

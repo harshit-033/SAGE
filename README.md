@@ -3,11 +3,14 @@
 > *“Integrated AICTE Approval Workflow Automation, Compliance Monitoring and Alert Management System.”*  
 > **Primary Regulatory Source**: AICTE Approval Process Handbook (APH) 2024–25 to 2026–27
 
-[![Build & Test Status](https://img.shields.io/badge/tests-117%2F117%20passing-brightgreen.svg)]()
+[![Build & Test Status](https://img.shields.io/badge/tests-140%2F140%20passing%20%7C%2015%2F15%20e2e-brightgreen.svg)]()
 [![Backend](https://img.shields.io/badge/backend-Spring%20Boot%203.4%20%7C%20Java%2021-blue.svg)]()
+[![EVC Engine](https://img.shields.io/badge/evc%20solver-Google%20OR--Tools%20CP--SAT%209.11-darkblue.svg)]()
 [![Automation](https://img.shields.io/badge/automation-FastAPI%20%7C%20Indra%20OCR%20%7C%20Python%203.14-teal.svg)]()
 [![Frontend](https://img.shields.io/badge/frontend-React%2019%20%7C%20TypeScript%20%7C%20Vite-purple.svg)]()
 [![Design System](https://img.shields.io/badge/design-Official%20AICTE%20Gov%20System-orange.svg)]()
+
+> **Final Project Report & Audit**: See [docs/SAGE-FINAL-PROJECT-REPORT.md](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/SAGE-FINAL-PROJECT-REPORT.md) and [docs/final-system-verification-report.md](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/final-system-verification-report.md) for the complete end-to-end audit, architectural proofs, and verification matrices.
 
 ---
 
@@ -16,11 +19,12 @@
 **SAGE** is a multi-tenant regulatory automation platform engineered for the All India Council for Technical Education (AICTE). It modernizes statutory approval workflows, document scrutiny, Expert Visit Committee (EVC) panel allocations, continuous compliance monitoring, and alert escalation.
 
 SAGE incorporates:
-- **Core Authority Backend**: Spring Boot 3.4 on Java 21 LTS with Spring Security, Spring Data JPA, PostgreSQL 16+, and Flyway schema migrations (V1 through V11).
-- **Application Workflow Engine**: Independent application lifecycle modeling, versioned workflow state machines (`WF_NEW_INSTITUTION`, `WF_EOA`, `WF_INCREASE_INTAKE`), optimistic locking, role authorization, and state transition auditing across 10 statutory states.
-- **Local Indra OCR & Multi-Engine Intelligence**: High-speed local CPU document processing with `indra-ocr` (45–55 ms/page, 10x–13x faster than Tesseract on digital PDFs, 4° skew correction), line-level bounding box coordinates, and extraction confidence provenance.
+- **Core Authority Backend**: Spring Boot 3.4 on Java 21 LTS with Spring Security, Spring Data JPA, PostgreSQL 16+, and Flyway schema migrations (V1 through V13).
+- **Integrated EVC Scheduling Engine**: Google OR-Tools CP-SAT 9.11.4210 constraint solver generating conflict-free inspection committees (3 distinct active experts, consecutive 2-day duration, Sunday exclusion, expert availability constraints, atomic persistence).
+- **Application Workflow Engine**: Independent application lifecycle modeling, versioned workflow state machines (`WF_NEW_INSTITUTION`, `WF_EOA`, `WF_INCREASE_INTAKE`), optimistic locking, role authorization, and state transition auditing across 12 statutory states.
+- **Local Indra OCR & Multi-Engine Intelligence**: High-speed local CPU document processing with `indra-ocr` (45–55 ms/page, 10x–13x faster than Tesseract on digital PDFs, 4° skew correction), line-level bounding box coordinates, and extraction confidence provenance with automatic Tesseract fallback.
 - **Secure Document Management**: Magic byte inspection (`%PDF-`, PNG, JPEG), SHA-256 cryptographic hashing, UUID file isolation, and directory traversal defense.
-- **Deterministic APH Scrutiny Engine**: Explainable compliance verification mapping to APH 2024–27 clauses (checklists, fire safety validity, land area, name concordance, and 70% confidence threshold gate).
+- **Deterministic APH Scrutiny Engine**: Explainable compliance verification mapping to APH 2024–27 clauses (checklists, fire safety validity, land area, name concordance, and 75% confidence threshold gate).
 - **Continuous Compliance & Deadline Automation**: Surveillance sweeps (`ComplianceEngineService`) detecting expired safety certificates and unrectified deficiencies, automatic countdown calculation, grace periods, and severity-based escalation (`INFO` → `WARNING` → `CRITICAL`).
 - **Distributed Scheduler Job Locks**: High-availability database-backed job locks (`distributed_job_locks` table) ensuring single-instance execution of scheduled surveillance sweeps across clustered backend nodes.
 - **Authoritative Authorization & Governance**: [AuthoritativeAuthorizationService](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/backend/src/main/java/org/aicte/sage/common/security/AuthoritativeAuthorizationService.java) strictly eliminating blanket cross-institution access through regional jurisdictions (`jurisdiction_assignments`), explicit case assignments (`case_assignments`), and statutory committee appointments (`committee_appointments`).

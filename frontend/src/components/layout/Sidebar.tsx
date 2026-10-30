@@ -12,6 +12,7 @@ import {
   Clock,
   HelpCircle,
   PhoneCall,
+  CalendarCheck,
 } from 'lucide-react'
 
 export const Sidebar: React.FC = () => {
@@ -85,6 +86,11 @@ export const Sidebar: React.FC = () => {
             <NavLink to="/institutions" style={getNavLinkStyle} id="sidebar-nav-institutions">
               <Building2 size={16} />
               <span>Institutions Directory</span>
+            </NavLink>
+
+            <NavLink to="/evc" style={getNavLinkStyle} id="sidebar-nav-evc">
+              <CalendarCheck size={16} />
+              <span>EVC Scheduling</span>
             </NavLink>
           </nav>
         </div>
