@@ -20,7 +20,14 @@ fi
 BASE_URL="${1:-}"
 if [ -z "${BASE_URL}" ]; then
   if [ -n "${DOMAIN_NAME:-}" ] && [ "${DOMAIN_NAME}" != "localhost" ]; then
-    BASE_URL="https://${DOMAIN_NAME}"
+    # Test if DOMAIN_NAME resolves locally before attempting connections
+    if getent hosts "${DOMAIN_NAME}" >/dev/null 2>&1 || curl -k -s --connect-timeout 2 "https://${DOMAIN_NAME}" >/dev/null 2>&1; then
+      BASE_URL="https://${DOMAIN_NAME}"
+    else
+      echo "Notice: Configured DOMAIN_NAME (${DOMAIN_NAME}) is not resolvable locally."
+      echo "        Falling back to http://localhost for local smoke testing."
+      BASE_URL="http://localhost"
+    fi
   else
     BASE_URL="http://localhost"
   fi
@@ -44,11 +51,14 @@ run_check() {
 
   echo -n "Checking ${NAME}... "
   local HTTP_CODE
+  local TEMP_OUT
+  TEMP_OUT=$(mktemp)
+
   if [ "${METHOD}" = "POST" ]; then
-    HTTP_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -X POST "${URL}" \
+    HTTP_CODE=$(curl -k -L -s -w "%{http_code}" -o "${TEMP_OUT}" -X POST "${URL}" \
       -H "Content-Type: application/json" -d "${BODY}" || echo "000")
   else
-    HTTP_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" "${URL}" || echo "000")
+    HTTP_CODE=$(curl -k -L -s -w "%{http_code}" -o "${TEMP_OUT}" "${URL}" || echo "000")
   fi
 
   if [ "${HTTP_CODE}" = "${EXPECTED_CODE}" ]; then
@@ -56,8 +66,14 @@ run_check() {
     PASSED=$((PASSED + 1))
   else
     echo "[FAIL] (Expected ${EXPECTED_CODE}, Got ${HTTP_CODE})"
+    if [ -s "${TEMP_OUT}" ]; then
+      local SNIPPET
+      SNIPPET=$(head -c 200 "${TEMP_OUT}" | tr '\n' ' ')
+      echo "       Response snippet: ${SNIPPET}"
+    fi
     FAILED=$((FAILED + 1))
   fi
+  rm -f "${TEMP_OUT}"
 }
 
 # 1. Frontend SPA root
@@ -75,7 +91,10 @@ run_check "Database Readiness Probe (/api/v1/health/ready)" "${BASE_URL}/api/v1/
 # 5. Automation Service Health Probe
 run_check "Automation Service Health (/automation-api/v1/health)" "${BASE_URL}/automation-api/v1/health" "200"
 
-# 6. Authentication API Endpoint (Expects 401 on empty/invalid credentials, proving route & filter are active)
+# 6. Protected Endpoint JWT Filter Enforcement (Expects 401 Unauthorized when unauthenticated)
+run_check "Protected Endpoint Filter (/api/v1/auth/me)" "${BASE_URL}/api/v1/auth/me" "401"
+
+# 7. Authentication API Endpoint (Expects 401 Unauthorized on invalid credentials)
 run_check "Authentication Filter Active (/api/v1/auth/login)" "${BASE_URL}/api/v1/auth/login" "401" "POST" '{"username":"invalid@test.gov.in","password":"wrong"}'
 
 echo "=============================================================================="

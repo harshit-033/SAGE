@@ -12,10 +12,33 @@ COMPOSE_FILE="${INFRA_DIR}/docker-compose.prod.yml"
 ENV_FILE="${INFRA_DIR}/.env.production"
 ENV_EXAMPLE="${INFRA_DIR}/.env.production.example"
 
-SKIP_SMOKE="${1:-}"
+# Parse Command-Line Arguments
+TARGET_URL=""
+SKIP_SMOKE="false"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --skip-smoke-test)
+      SKIP_SMOKE="true"
+      shift
+      ;;
+    --url)
+      TARGET_URL="$2"
+      shift 2
+      ;;
+    http://*|https://*)
+      TARGET_URL="$1"
+      shift
+      ;;
+    *)
+      echo "WARNING: Unknown argument '$1' ignored." >&2
+      shift
+      ;;
+  esac
+done
 
 echo "=============================================================================="
-echo "SAGE — Production Deployment Deployment Orchestrator"
+echo "SAGE — Production Deployment Orchestrator"
 echo "Repository Root: ${ROOT_DIR}"
 echo "Compose File:    ${COMPOSE_FILE}"
 echo "=============================================================================="
@@ -63,17 +86,22 @@ echo "• Building production Docker images (Backend, Automation, Frontend)..."
 docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" build
 
 # 5. Start / Update Production Services
-echo "• Deploying production services with zero-downtime container recreation..."
+echo "• Deploying production services with in-place container recreation..."
 docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d --remove-orphans
 
-# 6. Wait for Service Health
+# 6. Wait for Service Health with Independent Per-Service Timeouts
 echo "• Awaiting container health confirmation..."
 SERVICES=("db" "backend" "automation" "frontend" "caddy")
-TIMEOUT=90
-ELAPSED=0
 
 for SVC in "${SERVICES[@]}"; do
   echo -n "  - Waiting for '${SVC}' to become healthy... "
+  ELAPSED=0
+  SVC_TIMEOUT=60
+  # Spring Boot backend executes Flyway migrations (V1-V18) and JPA validation
+  if [ "${SVC}" = "backend" ]; then
+    SVC_TIMEOUT=120
+  fi
+
   while true; do
     CONTAINER_NAME=$(docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" ps -q "${SVC}" 2>/dev/null || echo "")
     if [ -z "${CONTAINER_NAME}" ]; then
@@ -88,26 +116,30 @@ for SVC in "${SERVICES[@]}"; do
     elif [ "${STATUS}" = "unhealthy" ]; then
       echo "FAILED"
       echo "ERROR: Service '${SVC}' reported UNHEALTHY state." >&2
-      docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" logs --tail 50 "${SVC}"
+      docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" logs --tail 100 "${SVC}"
       exit 3
     fi
 
     sleep 3
     ELAPSED=$((ELAPSED + 3))
-    if [ "${ELAPSED}" -ge "${TIMEOUT}" ]; then
+    if [ "${ELAPSED}" -ge "${SVC_TIMEOUT}" ]; then
       echo "TIMEOUT"
-      echo "ERROR: Timeout after ${TIMEOUT}s waiting for service '${SVC}' to report healthy." >&2
-      docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" logs --tail 50 "${SVC}"
+      echo "ERROR: Timeout after ${SVC_TIMEOUT}s waiting for service '${SVC}' to report healthy." >&2
+      docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" logs --tail 100 "${SVC}"
       exit 4
     fi
   done
 done
 
 # 7. Execute Post-Deployment Smoke Tests
-if [ "${SKIP_SMOKE}" != "--skip-smoke-test" ]; then
+if [ "${SKIP_SMOKE}" != "true" ]; then
   echo ""
   echo "• Executing deployment smoke tests..."
-  "${ROOT_DIR}/scripts/deployment-smoke-test.sh"
+  if [ -n "${TARGET_URL}" ]; then
+    "${ROOT_DIR}/scripts/deployment-smoke-test.sh" "${TARGET_URL}"
+  else
+    "${ROOT_DIR}/scripts/deployment-smoke-test.sh"
+  fi
 fi
 
 echo ""
