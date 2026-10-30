@@ -93,16 +93,15 @@ All error responses across all services follow standard `ProblemDetails`:
 - `modules/users/`: User entity, role assignments, user repository and query services.
 - `modules/institutions/`: Institution domain, tenancy scoping, institution profile management.
 - `modules/audit/`: Audit event listener, transactional outbox persistence repository, scoped query API.
-- *Prepared boundaries for Phase 3+*:
-  - `modules/applications/`: AICTE approval application submission and life cycle.
-  - `modules/workflow/`: Multi-stage approval state transitions.
-  - `modules/scrutiny/`: Automated deficiency checking and scoring.
-  - `modules/evc/`: Expert Visit Committee inspection management.
-  - `modules/compliance/`: Continuous regulatory monitoring.
-  - `modules/deadlines/`: Statutory milestone calculation and alert escalation.
-  - `modules/notifications/`: Multi-channel alerts (Email, SMS, Portal).
-  - `modules/documents/`: Secure document metadata, hash validation, and virus scanning hooks.
-  - `modules/automation/`: Outbound client calling FastAPI intelligence engine.
+- `modules/applications/`: AICTE approval application submission, lifecycle management, and course/branch specifications (`ApplicationCourseDetails`, `ApplicationBranchDetails`).
+- `modules/workflow/`: Versioned workflow state machines (`WF_NEW_INSTITUTION`, `WF_EOA`, `WF_INCREASE_INTAKE`, `WF_NEW_COURSE_INTRODUCTION`, `WF_NEW_BRANCH_INTRODUCTION`).
+- `modules/scrutiny/`: Automated APH deficiency checking, scoring, and course/branch cadre & lab norms.
+- `modules/evc/`: Google OR-Tools CP-SAT Expert Visit Committee constraint scheduling engine.
+- `modules/compliance/`: Continuous regulatory monitoring and distributed lock-protected sweeps.
+- `modules/deadlines/`: Statutory milestone calculation and alert escalation.
+- `modules/notifications/`: Multi-channel alerts (Email, SMS, Portal).
+- `modules/documents/`: Enterprise institution document compliance registry, immutable versioning (`v1` → `v2`), magic byte inspection, SHA-256 integrity, expiry surveillance, and corrective action workflows.
+- `modules/automation/`: Outbound client calling FastAPI intelligence engine with Indra OCR.
 
 ### Python Automation Engine (`app/`)
 - `api/v1/endpoints/`: Health endpoints, stub analysis routes.

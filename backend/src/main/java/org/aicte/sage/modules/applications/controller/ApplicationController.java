@@ -8,7 +8,11 @@ import org.aicte.sage.common.api.PageResponse;
 import org.aicte.sage.common.security.SecurityUtils;
 import org.aicte.sage.common.security.UserPrincipal;
 import org.aicte.sage.modules.applications.dto.ApplicationDto;
+import org.aicte.sage.modules.applications.dto.BranchDetailsDto;
+import org.aicte.sage.modules.applications.dto.CourseDetailsDto;
 import org.aicte.sage.modules.applications.dto.CreateApplicationRequest;
+import org.aicte.sage.modules.applications.dto.SaveBranchDetailsRequest;
+import org.aicte.sage.modules.applications.dto.SaveCourseDetailsRequest;
 import org.aicte.sage.modules.applications.model.ApplicationCategory;
 import org.aicte.sage.modules.applications.model.ApplicationState;
 import org.aicte.sage.modules.applications.service.ApplicationService;
@@ -118,5 +122,47 @@ public class ApplicationController {
     ) {
         WorkflowTransitionDto dto = applicationService.withdrawApplication(id, reason, getCurrentPrincipal());
         return ResponseEntity.ok(ApiResponse.ok("Application withdrawn", dto));
+    }
+
+    @PostMapping("/{id}/course-details")
+    @PreAuthorize("hasAuthority('APPLICATION_CREATE')")
+    @Operation(summary = "Save new course details", description = "Saves or updates course details for a New Course application draft")
+    public ResponseEntity<ApiResponse<CourseDetailsDto>> saveCourseDetails(
+            @PathVariable UUID id,
+            @Valid @RequestBody SaveCourseDetailsRequest request
+    ) {
+        CourseDetailsDto dto = applicationService.saveCourseDetails(id, request, getCurrentPrincipal());
+        return ResponseEntity.ok(ApiResponse.ok("Course details saved successfully", dto));
+    }
+
+    @GetMapping("/{id}/course-details")
+    @PreAuthorize("hasAuthority('APPLICATION_READ')")
+    @Operation(summary = "Get course details", description = "Retrieves course details for an application")
+    public ResponseEntity<ApiResponse<CourseDetailsDto>> getCourseDetails(
+            @PathVariable UUID id
+    ) {
+        CourseDetailsDto dto = applicationService.getCourseDetails(id, getCurrentPrincipal());
+        return ResponseEntity.ok(ApiResponse.ok(dto));
+    }
+
+    @PostMapping("/{id}/branch-details")
+    @PreAuthorize("hasAuthority('APPLICATION_CREATE')")
+    @Operation(summary = "Save new branch details", description = "Saves or updates branch details for a New Branch application draft")
+    public ResponseEntity<ApiResponse<BranchDetailsDto>> saveBranchDetails(
+            @PathVariable UUID id,
+            @Valid @RequestBody SaveBranchDetailsRequest request
+    ) {
+        BranchDetailsDto dto = applicationService.saveBranchDetails(id, request, getCurrentPrincipal());
+        return ResponseEntity.ok(ApiResponse.ok("Branch details saved successfully", dto));
+    }
+
+    @GetMapping("/{id}/branch-details")
+    @PreAuthorize("hasAuthority('APPLICATION_READ')")
+    @Operation(summary = "Get branch details", description = "Retrieves branch details for an application")
+    public ResponseEntity<ApiResponse<BranchDetailsDto>> getBranchDetails(
+            @PathVariable UUID id
+    ) {
+        BranchDetailsDto dto = applicationService.getBranchDetails(id, getCurrentPrincipal());
+        return ResponseEntity.ok(ApiResponse.ok(dto));
     }
 }

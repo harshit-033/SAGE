@@ -15,6 +15,8 @@ import { ApplicationDetails } from './pages/ApplicationDetails'
 import { Alerts } from './pages/Alerts'
 import { Compliance } from './pages/Compliance'
 import { EvcScheduling } from './pages/EvcScheduling'
+import { DocumentsCompliance } from './pages/DocumentsCompliance'
+import { RequiredActions } from './pages/RequiredActions'
 import { AccessDenied } from './pages/AccessDenied'
 import { NotFound } from './pages/NotFound'
 
@@ -77,6 +79,8 @@ export const AppContent: React.FC = () => {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/applications" element={<Applications />} />
         <Route path="/applications/:id" element={<ApplicationDetails />} />
+        <Route path="/documents-compliance" element={<DocumentsCompliance />} />
+        <Route path="/required-actions" element={<RequiredActions />} />
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/compliance" element={<Compliance />} />
         <Route path="/institutions" element={<Institutions />} />

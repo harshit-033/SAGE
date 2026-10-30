@@ -10,7 +10,7 @@
 [![Frontend](https://img.shields.io/badge/frontend-React%2019%20%7C%20TypeScript%20%7C%20Vite-purple.svg)]()
 [![Design System](https://img.shields.io/badge/design-Official%20AICTE%20Gov%20System-orange.svg)]()
 
-> **Final Project Report & Audit**: See [docs/SAGE-FINAL-PROJECT-REPORT.md](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/SAGE-FINAL-PROJECT-REPORT.md) and [docs/final-system-verification-report.md](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/final-system-verification-report.md) for the complete end-to-end audit, architectural proofs, and verification matrices.
+> **Final Project Report & Audit**: See [docs/SAGE-FINAL-PROJECT-REPORT.md](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/SAGE-FINAL-PROJECT-REPORT.md), [docs/new-application-workflows-implementation-report.md](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/new-application-workflows-implementation-report.md), and [docs/document-compliance-tracking-implementation-report.md](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/docs/document-compliance-tracking-implementation-report.md) for complete audits, architectural proofs, and verification matrices.
 
 ---
 
@@ -19,18 +19,20 @@
 **SAGE** is a multi-tenant regulatory automation platform engineered for the All India Council for Technical Education (AICTE). It modernizes statutory approval workflows, document scrutiny, Expert Visit Committee (EVC) panel allocations, continuous compliance monitoring, and alert escalation.
 
 SAGE incorporates:
-- **Core Authority Backend**: Spring Boot 3.4 on Java 21 LTS with Spring Security, Spring Data JPA, PostgreSQL 16+, and Flyway schema migrations (V1 through V13).
+- **Core Authority Backend**: Spring Boot 3.4 on Java 21 LTS with Spring Security, Spring Data JPA, PostgreSQL 16+, and Flyway schema migrations (V1 through V15).
 - **Integrated EVC Scheduling Engine**: Google OR-Tools CP-SAT 9.11.4210 constraint solver generating conflict-free inspection committees (3 distinct active experts, consecutive 2-day duration, Sunday exclusion, expert availability constraints, atomic persistence).
-- **Application Workflow Engine**: Independent application lifecycle modeling, versioned workflow state machines (`WF_NEW_INSTITUTION`, `WF_EOA`, `WF_INCREASE_INTAKE`), optimistic locking, role authorization, and state transition auditing across 12 statutory states.
+- **Application Workflow Engine**: Independent application lifecycle modeling, versioned workflow state machines (`WF_NEW_INSTITUTION`, `WF_EOA`, `WF_INCREASE_INTAKE`, `WF_NEW_COURSE_INTRODUCTION`, `WF_NEW_BRANCH_INTRODUCTION`), optimistic locking, role authorization, and state transition auditing across statutory states.
+- **New Course & Branch Introduction Workflows**: End-to-end statutory specifications for course discipline, degree type, proposed intake, faculty cadre ratios (1:20 norm), dedicated laboratories, and emerging area branch approvals.
+- **Enterprise Document Compliance & Required Actions Tracking**: Dedicated institutional document registry uncoupled from single applications, immutable version replacement (`v1` → `v2`), automated expiry surveillance (`EXPIRING_SOON`, `EXPIRED`), clarification requests, officer reviews, and consolidated corrective action management.
 - **Local Indra OCR & Multi-Engine Intelligence**: High-speed local CPU document processing with `indra-ocr` (45–55 ms/page, 10x–13x faster than Tesseract on digital PDFs, 4° skew correction), line-level bounding box coordinates, and extraction confidence provenance with automatic Tesseract fallback.
 - **Secure Document Management**: Magic byte inspection (`%PDF-`, PNG, JPEG), SHA-256 cryptographic hashing, UUID file isolation, and directory traversal defense.
-- **Deterministic APH Scrutiny Engine**: Explainable compliance verification mapping to APH 2024–27 clauses (checklists, fire safety validity, land area, name concordance, and 75% confidence threshold gate).
+- **Deterministic APH Scrutiny Engine**: Explainable compliance verification mapping to APH 2024–27 clauses (checklists, fire safety validity, land area, name concordance, faculty cadre ratios, dedicated labs, and 75% confidence threshold gate).
 - **Continuous Compliance & Deadline Automation**: Surveillance sweeps (`ComplianceEngineService`) detecting expired safety certificates and unrectified deficiencies, automatic countdown calculation, grace periods, and severity-based escalation (`INFO` → `WARNING` → `CRITICAL`).
 - **Distributed Scheduler Job Locks**: High-availability database-backed job locks (`distributed_job_locks` table) ensuring single-instance execution of scheduled surveillance sweeps across clustered backend nodes.
 - **Authoritative Authorization & Governance**: [AuthoritativeAuthorizationService](file:///home/Harshit/Desktop/PROJECTS/SIH%202026/AICTE/SAGE/backend/src/main/java/org/aicte/sage/common/security/AuthoritativeAuthorizationService.java) strictly eliminating blanket cross-institution access through regional jurisdictions (`jurisdiction_assignments`), explicit case assignments (`case_assignments`), and statutory committee appointments (`committee_appointments`).
 - **Authentication Lifecycle & Server-Side Revocation**: Stateless Bearer JWT with server-side token invalidation (`token_revocations` table and memory cache) on logout; deactivated accounts are blocked.
 - **Reliable Regulatory Audit Trail**: Consequential state changes are committed atomically with `AuditClassification.MANDATORY`; if audit persistence fails, the business transaction rolls back (`AuditPersistenceException`).
-- **AICTE-Inspired Design System & 5 Role Dashboards**: Authentic government aesthetic derived from [aicte.gov.in](https://www.aicte.gov.in/) with high-contrast toggle, font scaling, accessible WCAG 2.2 AA compliant modal dialogs (no browser `window.confirm`), and custom portals for Central Admin, Regional Officer, Institution Officer, Compliance Officer, and Auditor.
+- **AICTE-Inspired Design System & Role Dashboards**: Authentic government aesthetic derived from [aicte.gov.in](https://www.aicte.gov.in/) with high-contrast toggle, font scaling, accessible WCAG 2.2 AA compliant modal dialogs, and custom portals for Central Admin, Regional Officer, Institution Officer, Compliance Officer, and Auditor.
 
 ---
 

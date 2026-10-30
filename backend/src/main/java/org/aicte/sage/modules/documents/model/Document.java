@@ -16,9 +16,47 @@ public class Document {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "application_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "application_id")
     private Application application;
+
+    @Column(name = "document_name")
+    private String documentName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_category", length = 64)
+    private DocumentCategory documentCategory = DocumentCategory.GENERAL;
+
+    @Column(name = "valid_from")
+    private Instant validFrom;
+
+    @Column(name = "expiry_date")
+    private Instant expiryDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status", length = 64)
+    private DocumentVerificationStatus verificationStatus = DocumentVerificationStatus.PENDING_REVIEW;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "compliance_status", length = 64)
+    private DocumentComplianceStatus complianceStatus = DocumentComplianceStatus.COMPLIANT;
+
+    @Column(name = "version_number")
+    private Integer versionNumber = 1;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "previous_version_id")
+    private Document previousVersion;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "root_document_id")
+    private Document rootDocument;
+
+    @Column(name = "officer_comments", columnDefinition = "TEXT")
+    private String officerComments;
+
+    @Column(name = "clarification_text", columnDefinition = "TEXT")
+    private String clarificationText;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "institution_id", nullable = false)
@@ -120,6 +158,39 @@ public class Document {
 
     public User getUploadedBy() { return uploadedBy; }
     public void setUploadedBy(User uploadedBy) { this.uploadedBy = uploadedBy; }
+
+    public String getDocumentName() { return documentName != null ? documentName : originalFilename; }
+    public void setDocumentName(String documentName) { this.documentName = documentName; }
+
+    public DocumentCategory getDocumentCategory() { return documentCategory; }
+    public void setDocumentCategory(DocumentCategory documentCategory) { this.documentCategory = documentCategory; }
+
+    public Instant getValidFrom() { return validFrom; }
+    public void setValidFrom(Instant validFrom) { this.validFrom = validFrom; }
+
+    public Instant getExpiryDate() { return expiryDate; }
+    public void setExpiryDate(Instant expiryDate) { this.expiryDate = expiryDate; }
+
+    public DocumentVerificationStatus getVerificationStatus() { return verificationStatus; }
+    public void setVerificationStatus(DocumentVerificationStatus verificationStatus) { this.verificationStatus = verificationStatus; }
+
+    public DocumentComplianceStatus getComplianceStatus() { return complianceStatus; }
+    public void setComplianceStatus(DocumentComplianceStatus complianceStatus) { this.complianceStatus = complianceStatus; }
+
+    public Integer getVersionNumber() { return versionNumber != null ? versionNumber : 1; }
+    public void setVersionNumber(Integer versionNumber) { this.versionNumber = versionNumber; }
+
+    public Document getPreviousVersion() { return previousVersion; }
+    public void setPreviousVersion(Document previousVersion) { this.previousVersion = previousVersion; }
+
+    public Document getRootDocument() { return rootDocument; }
+    public void setRootDocument(Document rootDocument) { this.rootDocument = rootDocument; }
+
+    public String getOfficerComments() { return officerComments; }
+    public void setOfficerComments(String officerComments) { this.officerComments = officerComments; }
+
+    public String getClarificationText() { return clarificationText; }
+    public void setClarificationText(String clarificationText) { this.clarificationText = clarificationText; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

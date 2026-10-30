@@ -73,6 +73,16 @@ export const Sidebar: React.FC = () => {
               <span>Applications &amp; Scrutiny</span>
             </NavLink>
 
+            <NavLink to="/documents-compliance" style={getNavLinkStyle} id="sidebar-nav-documents-compliance">
+              <FileCheck size={16} />
+              <span>Documents &amp; Compliance</span>
+            </NavLink>
+
+            <NavLink to="/required-actions" style={getNavLinkStyle} id="sidebar-nav-required-actions">
+              <ShieldAlert size={16} />
+              <span>Required Actions</span>
+            </NavLink>
+
             <NavLink to="/compliance" style={getNavLinkStyle} id="sidebar-nav-compliance">
               <Clock size={16} />
               <span>Compliance &amp; Deadlines</span>

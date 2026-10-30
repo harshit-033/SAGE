@@ -5,8 +5,12 @@ import org.aicte.sage.common.exception.ResourceNotFoundException;
 import org.aicte.sage.common.security.AuthoritativeAuthorizationService;
 import org.aicte.sage.common.security.UserPrincipal;
 import org.aicte.sage.modules.applications.model.Application;
+import org.aicte.sage.modules.applications.model.ApplicationBranchDetails;
 import org.aicte.sage.modules.applications.model.ApplicationCategory;
+import org.aicte.sage.modules.applications.model.ApplicationCourseDetails;
 import org.aicte.sage.modules.applications.model.ApplicationState;
+import org.aicte.sage.modules.applications.repository.ApplicationBranchDetailsRepository;
+import org.aicte.sage.modules.applications.repository.ApplicationCourseDetailsRepository;
 import org.aicte.sage.modules.applications.repository.ApplicationRepository;
 import org.aicte.sage.modules.documents.model.Document;
 import org.aicte.sage.modules.documents.model.DocumentExtractedField;
@@ -46,6 +50,8 @@ public class ScrutinyEngineService {
     private final ScrutinyRuleRepository ruleRepository;
     private final ScrutinyEvaluationRepository evaluationRepository;
     private final ScrutinyFindingRepository findingRepository;
+    private final ApplicationCourseDetailsRepository courseDetailsRepository;
+    private final ApplicationBranchDetailsRepository branchDetailsRepository;
     private final UserRepository userRepository;
     private final WorkflowEngineService workflowEngineService;
     private final AuthoritativeAuthorizationService authService;
@@ -61,6 +67,8 @@ public class ScrutinyEngineService {
             ScrutinyRuleRepository ruleRepository,
             ScrutinyEvaluationRepository evaluationRepository,
             ScrutinyFindingRepository findingRepository,
+            ApplicationCourseDetailsRepository courseDetailsRepository,
+            ApplicationBranchDetailsRepository branchDetailsRepository,
             UserRepository userRepository,
             WorkflowEngineService workflowEngineService,
             AuthoritativeAuthorizationService authService,
@@ -72,6 +80,8 @@ public class ScrutinyEngineService {
         this.ruleRepository = ruleRepository;
         this.evaluationRepository = evaluationRepository;
         this.findingRepository = findingRepository;
+        this.courseDetailsRepository = courseDetailsRepository;
+        this.branchDetailsRepository = branchDetailsRepository;
         this.userRepository = userRepository;
         this.workflowEngineService = workflowEngineService;
         this.authService = authService;
@@ -127,6 +137,13 @@ public class ScrutinyEngineService {
 
         // 6. RULE: OCR Confidence Gate
         evaluateConfidenceGateRule(savedEval, application, documents, generatedFindings);
+
+        // 7. Category-specific rules for New Course & New Branch
+        if (application.getCategory() == ApplicationCategory.NEW_COURSE_INTRODUCTION) {
+            evaluateNewCourseRules(savedEval, application, docByType, generatedFindings);
+        } else if (application.getCategory() == ApplicationCategory.NEW_BRANCH_INTRODUCTION) {
+            evaluateNewBranchRules(savedEval, application, docByType, generatedFindings);
+        }
 
         // Save all findings
         findingRepository.saveAll(generatedFindings);
@@ -205,6 +222,19 @@ public class ScrutinyEngineService {
             requiredTypes.add(DocumentType.FIRE_SAFETY_CERTIFICATE);
             requiredTypes.add(DocumentType.OCCUPANCY_CERTIFICATE);
             requiredTypes.add(DocumentType.BOARD_RESOLUTION);
+        } else if (app.getCategory() == ApplicationCategory.NEW_COURSE_INTRODUCTION) {
+            requiredTypes.add(DocumentType.FIRE_SAFETY_CERTIFICATE);
+            requiredTypes.add(DocumentType.OCCUPANCY_CERTIFICATE);
+            requiredTypes.add(DocumentType.BOARD_RESOLUTION);
+            requiredTypes.add(DocumentType.FACULTY_LIST_QUALIFICATION);
+            requiredTypes.add(DocumentType.LABORATORY_INFRASTRUCTURE_REPORT);
+            requiredTypes.add(DocumentType.SYLLABUS_CURRICULUM_APPROVAL);
+        } else if (app.getCategory() == ApplicationCategory.NEW_BRANCH_INTRODUCTION) {
+            requiredTypes.add(DocumentType.FIRE_SAFETY_CERTIFICATE);
+            requiredTypes.add(DocumentType.OCCUPANCY_CERTIFICATE);
+            requiredTypes.add(DocumentType.BOARD_RESOLUTION);
+            requiredTypes.add(DocumentType.FACULTY_LIST_QUALIFICATION);
+            requiredTypes.add(DocumentType.LABORATORY_INFRASTRUCTURE_REPORT);
         } else {
             requiredTypes.add(DocumentType.FIRE_SAFETY_CERTIFICATE);
             requiredTypes.add(DocumentType.AFFIDAVIT_FORMAT_1);
@@ -574,5 +604,196 @@ public class ScrutinyEngineService {
             dto.setFindings(findings.stream().map(ScrutinyFindingDto::fromEntity).toList());
             return dto;
         }).toList();
+    }
+
+    private void evaluateNewCourseRules(
+            ScrutinyEvaluation eval,
+            Application app,
+            Map<DocumentType, Document> docByType,
+            List<ScrutinyFinding> findings
+    ) {
+        ApplicationCourseDetails courseDetails = courseDetailsRepository.findByApplicationId(app.getId()).orElse(null);
+        Document facultyDoc = docByType.get(DocumentType.FACULTY_LIST_QUALIFICATION);
+        Document labDoc = docByType.get(DocumentType.LABORATORY_INFRASTRUCTURE_REPORT);
+        Document syllabusDoc = docByType.get(DocumentType.SYLLABUS_CURRICULUM_APPROVAL);
+
+        // Rule 1: Faculty Ratio & Cadre Norms
+        ScrutinyRule facultyRatioRule = ruleRepository.findById("RULE_APH_COURSE_FACULTY_RATIO").orElse(null);
+        if (facultyRatioRule != null) {
+            if (courseDetails == null) {
+                ScrutinyFinding f = new ScrutinyFinding();
+                f.setEvaluation(eval);
+                f.setApplication(app);
+                f.setRule(facultyRatioRule);
+                f.setDocument(facultyDoc);
+                f.setStatus(FindingStatus.DEFICIENT);
+                f.setDeficiencyType(DeficiencyType.INSUFFICIENT_DATA);
+                f.setExplanation("Proposed course infrastructure & faculty details not provided.");
+                f.setEvidenceText("ApplicationCourseDetails record is missing");
+                findings.add(f);
+            } else {
+                int totalFaculty = (courseDetails.getProfessorsCount() != null ? courseDetails.getProfessorsCount() : 0) +
+                        (courseDetails.getAssociateProfessorsCount() != null ? courseDetails.getAssociateProfessorsCount() : 0) +
+                        (courseDetails.getAssistantProfessorsCount() != null ? courseDetails.getAssistantProfessorsCount() : 0);
+
+                if (totalFaculty < 3 || (courseDetails.getProfessorsCount() != null && courseDetails.getProfessorsCount() < 1)) {
+                    ScrutinyFinding f = new ScrutinyFinding();
+                    f.setEvaluation(eval);
+                    f.setApplication(app);
+                    f.setRule(facultyRatioRule);
+                    f.setDocument(facultyDoc);
+                    f.setStatus(FindingStatus.DEFICIENT);
+                    f.setDeficiencyType(DeficiencyType.FACULTY_SHORTFALL);
+                    f.setExplanation("Faculty cadre does not satisfy minimum APH norms for proposed course (Requires at least 1 Professor and minimum 3 core faculty members). Current: " + totalFaculty + " total, " + courseDetails.getProfessorsCount() + " Professors.");
+                    f.setEvidenceText("Professors: " + courseDetails.getProfessorsCount() + ", Associate: " + courseDetails.getAssociateProfessorsCount() + ", Assistant: " + courseDetails.getAssistantProfessorsCount());
+                    findings.add(f);
+                } else {
+                    ScrutinyFinding f = new ScrutinyFinding();
+                    f.setEvaluation(eval);
+                    f.setApplication(app);
+                    f.setRule(facultyRatioRule);
+                    f.setDocument(facultyDoc);
+                    f.setStatus(FindingStatus.COMPLIANT);
+                    f.setExplanation("Faculty cadre satisfies APH 2024-27 norms: " + totalFaculty + " faculty members (Professors: " + courseDetails.getProfessorsCount() + ", Ratio: " + (courseDetails.getFacultyStudentRatio() != null ? courseDetails.getFacultyStudentRatio() : "1:20") + ").");
+                    f.setEvidenceText("Total Core Faculty: " + totalFaculty);
+                    findings.add(f);
+                }
+            }
+        }
+
+        // Rule 2: Laboratories & Classrooms
+        ScrutinyRule labRule = ruleRepository.findById("RULE_APH_COURSE_LABORATORY").orElse(null);
+        if (labRule != null && courseDetails != null) {
+            int labs = courseDetails.getLaboratoriesCount() != null ? courseDetails.getLaboratoriesCount() : 0;
+            int classrooms = courseDetails.getAvailableClassrooms() != null ? courseDetails.getAvailableClassrooms() : 0;
+
+            if (labs < 1 || classrooms < 1) {
+                ScrutinyFinding f = new ScrutinyFinding();
+                f.setEvaluation(eval);
+                f.setApplication(app);
+                f.setRule(labRule);
+                f.setDocument(labDoc);
+                f.setStatus(FindingStatus.DEFICIENT);
+                f.setDeficiencyType(DeficiencyType.INADEQUATE_INFRASTRUCTURE);
+                f.setExplanation("Insufficient laboratory/classroom infrastructure for proposed course. Minimum required: 1 lab and 1 classroom. Available: " + labs + " labs, " + classrooms + " classrooms.");
+                f.setEvidenceText("Laboratories: " + labs + ", Classrooms: " + classrooms);
+                findings.add(f);
+            } else {
+                ScrutinyFinding f = new ScrutinyFinding();
+                f.setEvaluation(eval);
+                f.setApplication(app);
+                f.setRule(labRule);
+                f.setDocument(labDoc);
+                f.setStatus(FindingStatus.COMPLIANT);
+                f.setExplanation("Infrastructure norms satisfied: " + labs + " dedicated laboratories and " + classrooms + " classrooms allocated for " + courseDetails.getCourseName());
+                f.setEvidenceText("Laboratories: " + labs + ", Classrooms: " + classrooms);
+                findings.add(f);
+            }
+        }
+
+        // Rule 3: Curriculum & Affiliation
+        ScrutinyRule affRule = ruleRepository.findById("RULE_APH_COURSE_CURRICULUM_AFFILIATION").orElse(null);
+        if (affRule != null) {
+            if (syllabusDoc == null) {
+                ScrutinyFinding f = new ScrutinyFinding();
+                f.setEvaluation(eval);
+                f.setApplication(app);
+                f.setRule(affRule);
+                f.setStatus(FindingStatus.DEFICIENT);
+                f.setDeficiencyType(DeficiencyType.MISSING_MANDATORY_DOCUMENT);
+                f.setExplanation("Syllabus & University Curriculum Affiliation document is required for new course introduction.");
+                f.setEvidenceText("Missing document type: SYLLABUS_CURRICULUM_APPROVAL");
+                findings.add(f);
+            } else {
+                ScrutinyFinding f = new ScrutinyFinding();
+                f.setEvaluation(eval);
+                f.setApplication(app);
+                f.setRule(affRule);
+                f.setDocument(syllabusDoc);
+                f.setStatus(FindingStatus.COMPLIANT);
+                f.setExplanation("University curriculum approval verified: " + syllabusDoc.getOriginalFilename());
+                f.setEvidenceText("Document: " + syllabusDoc.getOriginalFilename() + " (v" + syllabusDoc.getVersionNumber() + ")");
+                findings.add(f);
+            }
+        }
+    }
+
+    private void evaluateNewBranchRules(
+            ScrutinyEvaluation eval,
+            Application app,
+            Map<DocumentType, Document> docByType,
+            List<ScrutinyFinding> findings
+    ) {
+        ApplicationBranchDetails branchDetails = branchDetailsRepository.findByApplicationId(app.getId()).orElse(null);
+        Document facultyDoc = docByType.get(DocumentType.FACULTY_LIST_QUALIFICATION);
+        Document labDoc = docByType.get(DocumentType.LABORATORY_INFRASTRUCTURE_REPORT);
+
+        // Rule 1: Intake Cap
+        ScrutinyRule intakeCapRule = ruleRepository.findById("RULE_APH_BRANCH_INTAKE_CAP").orElse(null);
+        if (intakeCapRule != null) {
+            if (branchDetails == null) {
+                ScrutinyFinding f = new ScrutinyFinding();
+                f.setEvaluation(eval);
+                f.setApplication(app);
+                f.setRule(intakeCapRule);
+                f.setStatus(FindingStatus.DEFICIENT);
+                f.setDeficiencyType(DeficiencyType.INSUFFICIENT_DATA);
+                f.setExplanation("Proposed branch/specialization intake details not provided.");
+                f.setEvidenceText("ApplicationBranchDetails record is missing");
+                findings.add(f);
+            } else {
+                int proposedIntake = branchDetails.getProposedIntake() != null ? branchDetails.getProposedIntake() : 0;
+                if (proposedIntake > 120 || proposedIntake < 15) {
+                    ScrutinyFinding f = new ScrutinyFinding();
+                    f.setEvaluation(eval);
+                    f.setApplication(app);
+                    f.setRule(intakeCapRule);
+                    f.setStatus(FindingStatus.DEFICIENT);
+                    f.setDeficiencyType(DeficiencyType.POLICY_VIOLATION);
+                    f.setExplanation("Proposed intake of " + proposedIntake + " exceeds standard APH single-division ceiling (15 to 120 seats per branch).");
+                    f.setEvidenceText("Proposed intake: " + proposedIntake);
+                    findings.add(f);
+                } else {
+                    ScrutinyFinding f = new ScrutinyFinding();
+                    f.setEvaluation(eval);
+                    f.setApplication(app);
+                    f.setRule(intakeCapRule);
+                    f.setStatus(FindingStatus.COMPLIANT);
+                    f.setExplanation("Proposed intake of " + proposedIntake + " is within statutory limits for branch " + branchDetails.getProposedBranchName());
+                    f.setEvidenceText("Intake: " + proposedIntake);
+                    findings.add(f);
+                }
+            }
+        }
+
+        // Rule 2: Core Faculty & Lab Availability
+        ScrutinyRule coreFacultyRule = ruleRepository.findById("RULE_APH_BRANCH_CORE_FACULTY").orElse(null);
+        if (coreFacultyRule != null && branchDetails != null) {
+            int faculty = branchDetails.getFacultyCount() != null ? branchDetails.getFacultyCount() : 0;
+            int labs = branchDetails.getLaboratoryCount() != null ? branchDetails.getLaboratoryCount() : 0;
+
+            if (faculty < 3 || labs < 1) {
+                ScrutinyFinding f = new ScrutinyFinding();
+                f.setEvaluation(eval);
+                f.setApplication(app);
+                f.setRule(coreFacultyRule);
+                f.setDocument(facultyDoc != null ? facultyDoc : labDoc);
+                f.setStatus(FindingStatus.DEFICIENT);
+                f.setDeficiencyType(DeficiencyType.FACULTY_SHORTFALL);
+                f.setExplanation("Inadequate core faculty or laboratory infrastructure for proposed branch. Minimum required: 3 faculty, 1 lab. Available: " + faculty + " faculty, " + labs + " labs.");
+                f.setEvidenceText("Faculty: " + faculty + ", Labs: " + labs);
+                findings.add(f);
+            } else {
+                ScrutinyFinding f = new ScrutinyFinding();
+                f.setEvaluation(eval);
+                f.setApplication(app);
+                f.setRule(coreFacultyRule);
+                f.setDocument(facultyDoc);
+                f.setStatus(FindingStatus.COMPLIANT);
+                f.setExplanation("Core faculty (" + faculty + ") and laboratory resources (" + labs + ") satisfied for " + branchDetails.getProposedBranchName());
+                f.setEvidenceText("Faculty: " + faculty + ", Labs: " + labs);
+                findings.add(f);
+            }
+        }
     }
 }

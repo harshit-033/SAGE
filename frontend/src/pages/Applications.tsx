@@ -49,6 +49,15 @@ export const Applications: React.FC = () => {
     institutionId: '',
     academicYear: '2024-25',
     category: 'EXTENSION_OF_APPROVAL',
+    courseName: '',
+    programmeLevel: 'UNDERGRADUATE',
+    degreeType: 'B.Tech',
+    courseDiscipline: 'Computer Science and Engineering',
+    proposedIntake: 60,
+    existingProgramme: 'Engineering and Technology',
+    existingDepartment: 'Computer Science',
+    proposedBranchName: '',
+    branchProposedIntake: 30,
   })
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -72,7 +81,39 @@ export const Applications: React.FC = () => {
 
   // Create Application Mutation
   const createMutation = useMutation({
-    mutationFn: applicationsApi.create,
+    mutationFn: async (data: typeof formData) => {
+      const app = await applicationsApi.create({
+        institutionId: data.institutionId,
+        academicYear: data.academicYear,
+        category: data.category,
+      })
+      if (data.category === 'NEW_COURSE_INTRODUCTION' && data.courseName) {
+        await applicationsApi.saveCourseDetails(app.id, {
+          courseName: data.courseName,
+          programmeLevel: data.programmeLevel,
+          degreeType: data.degreeType,
+          courseDiscipline: data.courseDiscipline,
+          proposedIntake: Number(data.proposedIntake) || 60,
+          durationYears: 4,
+          availableClassrooms: 2,
+          laboratoriesCount: 2,
+          professorsCount: 1,
+          associateProfessorsCount: 2,
+          assistantProfessorsCount: 4,
+        })
+      } else if (data.category === 'NEW_BRANCH_INTRODUCTION' && data.proposedBranchName) {
+        await applicationsApi.saveBranchDetails(app.id, {
+          existingProgramme: data.existingProgramme,
+          existingDepartment: data.existingDepartment,
+          proposedBranchName: data.proposedBranchName,
+          proposedIntake: Number(data.branchProposedIntake) || 30,
+          facultyCount: 4,
+          laboratoryCount: 2,
+          availableClassrooms: 2,
+        })
+      }
+      return app
+    },
     onSuccess: (newApp) => {
       queryClient.invalidateQueries({ queryKey: ['applications'] })
       setIsCreateModalOpen(false)
@@ -91,6 +132,15 @@ export const Applications: React.FC = () => {
       institutionId: defaultInstId,
       academicYear: '2024-25',
       category: 'EXTENSION_OF_APPROVAL',
+      courseName: '',
+      programmeLevel: 'UNDERGRADUATE',
+      degreeType: 'B.Tech',
+      courseDiscipline: 'Computer Science and Engineering',
+      proposedIntake: 60,
+      existingProgramme: 'Engineering and Technology',
+      existingDepartment: 'Computer Science',
+      proposedBranchName: '',
+      branchProposedIntake: 30,
     })
     setIsCreateModalOpen(true)
   }
@@ -238,6 +288,8 @@ export const Applications: React.FC = () => {
           aria-label="Filter by Category"
         >
           <option value="">All Application Categories</option>
+          <option value="NEW_COURSE_INTRODUCTION">Introduction of New Course / Discipline</option>
+          <option value="NEW_BRANCH_INTRODUCTION">Introduction of New Branch / Specialization</option>
           <option value="EXTENSION_OF_APPROVAL">Extension of Approval (EoA)</option>
           <option value="NEW_INSTITUTION">New Technical Institution</option>
           <option value="INCREASE_IN_INTAKE">Increase in Intake</option>
@@ -442,6 +494,8 @@ export const Applications: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               required
             >
+              <option value="NEW_COURSE_INTRODUCTION">Introduction of New Course / Discipline (APH Clause 2.4)</option>
+              <option value="NEW_BRANCH_INTRODUCTION">Introduction of New Branch / Specialization (APH Clause 2.5)</option>
               <option value="EXTENSION_OF_APPROVAL">Extension of Approval (EoA - Existing Campus)</option>
               <option value="NEW_INSTITUTION">Setting up New Technical Institution</option>
               <option value="INCREASE_IN_INTAKE">Increase in Intake / Additional Course</option>
@@ -452,6 +506,118 @@ export const Applications: React.FC = () => {
               Workflow definitions, mandatory document checklists, and committee approvals vary automatically by category.
             </small>
           </div>
+
+          {/* Dynamic Section: New Course Introduction */}
+          {formData.category === 'NEW_COURSE_INTRODUCTION' && (
+            <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-page)', borderRadius: '4px', borderLeft: '3px solid var(--gov-blue)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--gov-navy)', marginBottom: '0.5rem' }}>
+                Proposed New Course Specifications
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Proposed Course Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    required
+                    placeholder="e.g. Artificial Intelligence & Data Science"
+                    value={formData.courseName}
+                    onChange={(e) => setFormData({ ...formData, courseName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Programme Level</label>
+                  <select
+                    className="form-control"
+                    value={formData.programmeLevel}
+                    onChange={(e) => setFormData({ ...formData, programmeLevel: e.target.value })}
+                  >
+                    <option value="UNDERGRADUATE">Undergraduate (UG)</option>
+                    <option value="POSTGRADUATE">Postgraduate (PG)</option>
+                    <option value="DIPLOMA">Diploma</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Degree Type</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={formData.degreeType}
+                    onChange={(e) => setFormData({ ...formData, degreeType: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Course Discipline</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={formData.courseDiscipline}
+                    onChange={(e) => setFormData({ ...formData, courseDiscipline: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Proposed Intake</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="form-control"
+                    value={formData.proposedIntake}
+                    onChange={(e) => setFormData({ ...formData, proposedIntake: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Dynamic Section: New Branch Introduction */}
+          {formData.category === 'NEW_BRANCH_INTRODUCTION' && (
+            <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-page)', borderRadius: '4px', borderLeft: '3px solid var(--gov-orange)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--gov-navy)', marginBottom: '0.5rem' }}>
+                Proposed New Branch / Specialization Specifications
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Existing Approved Programme</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={formData.existingProgramme}
+                    onChange={(e) => setFormData({ ...formData, existingProgramme: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Department</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={formData.existingDepartment}
+                    onChange={(e) => setFormData({ ...formData, existingDepartment: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Proposed Branch Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    required
+                    placeholder="e.g. Cyber Security & Digital Forensics"
+                    value={formData.proposedBranchName}
+                    onChange={(e) => setFormData({ ...formData, proposedBranchName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Proposed Intake</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="form-control"
+                    value={formData.branchProposedIntake}
+                    onChange={(e) => setFormData({ ...formData, branchProposedIntake: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
             <button

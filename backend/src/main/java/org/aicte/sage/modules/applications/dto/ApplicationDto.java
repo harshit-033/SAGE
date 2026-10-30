@@ -24,6 +24,8 @@ public class ApplicationDto {
     private Instant submittedAt;
     private Instant finalDecisionAt;
     private Long version;
+    private CourseDetailsDto courseDetails;
+    private BranchDetailsDto branchDetails;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -99,6 +101,12 @@ public class ApplicationDto {
 
     public Long getVersion() { return version; }
     public void setVersion(Long version) { this.version = version; }
+
+    public CourseDetailsDto getCourseDetails() { return courseDetails; }
+    public void setCourseDetails(CourseDetailsDto courseDetails) { this.courseDetails = courseDetails; }
+
+    public BranchDetailsDto getBranchDetails() { return branchDetails; }
+    public void setBranchDetails(BranchDetailsDto branchDetails) { this.branchDetails = branchDetails; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

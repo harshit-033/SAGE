@@ -14,4 +14,6 @@ public interface ScrutinyFindingRepository extends JpaRepository<ScrutinyFinding
     List<ScrutinyFinding> findByEvaluationId(UUID evaluationId);
     List<ScrutinyFinding> findByApplicationIdAndStatus(UUID applicationId, FindingStatus status);
     List<ScrutinyFinding> findByApplicationIdAndResolvedFalse(UUID applicationId);
+    List<ScrutinyFinding> findByDocumentId(UUID documentId);
+    List<ScrutinyFinding> findByDocumentIdIn(List<UUID> documentIds);
 }

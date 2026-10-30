@@ -1,7 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { applicationsApi, type DocumentDto, type ScrutinyFindingDto } from '../api/applicationsApi'
+import {
+  applicationsApi,
+  type DocumentDto,
+  type ScrutinyFindingDto,
+  type CourseDetailsDto,
+  type BranchDetailsDto,
+} from '../api/applicationsApi'
 import { useAuth } from '../context/AuthContext'
 import { StatusBadge } from '../components/common/StatusBadge'
 import { Modal } from '../components/common/Modal'
@@ -16,7 +22,11 @@ import {
   Send,
   ShieldCheck,
   Layers,
-  FileCheck2
+  FileCheck2,
+  BookOpen,
+  GitBranch,
+  Edit3,
+  Save,
 } from 'lucide-react'
 
 interface ApiErrorResponse {
@@ -33,7 +43,7 @@ export const ApplicationDetails: React.FC = () => {
   const queryClient = useQueryClient()
   const { hasRole, isAdmin } = useAuth()
 
-  const [activeTab, setActiveTab] = useState<'documents' | 'scrutiny' | 'workflow'>('documents')
+  const [activeTab, setActiveTab] = useState<'specification' | 'documents' | 'scrutiny' | 'workflow'>('specification')
 
   // Upload Form State
   const [selectedDocType, setSelectedDocType] = useState<string>('FIRE_SAFETY_CERTIFICATE')
@@ -50,6 +60,13 @@ export const ApplicationDetails: React.FC = () => {
   const [targetState, setTargetState] = useState<string>('UNDER_SCRUTINY')
   const [transitionReason, setTransitionReason] = useState<string>('')
   const [transitionError, setTransitionError] = useState<string | null>(null)
+
+  // Specification Edit States
+  const [isEditingCourse, setIsEditingCourse] = useState(false)
+  const [courseForm, setCourseForm] = useState<Partial<CourseDetailsDto>>({})
+
+  const [isEditingBranch, setIsEditingBranch] = useState(false)
+  const [branchForm, setBranchForm] = useState<Partial<BranchDetailsDto>>({})
 
   // Fetch application details
   const { data: application, isLoading: isAppLoading } = useQuery({
@@ -145,6 +162,36 @@ export const ApplicationDetails: React.FC = () => {
     onError: (err: unknown) => {
       const e = err as ApiErrorResponse
       setTransitionError(e.response?.data?.detail || 'Transition rejected')
+    },
+  })
+
+  useEffect(() => {
+    if (application) {
+      if (application.category === 'NEW_COURSE_INTRODUCTION' && application.courseDetails) {
+        setCourseForm(application.courseDetails)
+        setActiveTab('specification')
+      } else if (application.category === 'NEW_BRANCH_INTRODUCTION' && application.branchDetails) {
+        setBranchForm(application.branchDetails)
+        setActiveTab('specification')
+      } else {
+        setActiveTab('documents')
+      }
+    }
+  }, [application])
+
+  const saveCourseMutation = useMutation({
+    mutationFn: (data: CourseDetailsDto) => applicationsApi.saveCourseDetails(id!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['application', id] })
+      setIsEditingCourse(false)
+    },
+  })
+
+  const saveBranchMutation = useMutation({
+    mutationFn: (data: BranchDetailsDto) => applicationsApi.saveBranchDetails(id!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['application', id] })
+      setIsEditingBranch(false)
     },
   })
 
@@ -355,7 +402,51 @@ export const ApplicationDetails: React.FC = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '2px solid var(--border-medium)' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '2px solid var(--border-medium)', flexWrap: 'wrap' }}>
+        {application.category === 'NEW_COURSE_INTRODUCTION' && (
+          <button
+            onClick={() => setActiveTab('specification')}
+            style={{
+              padding: '0.75rem 1.25rem',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              border: 'none',
+              borderBottom: activeTab === 'specification' ? '3px solid var(--gov-orange)' : '3px solid transparent',
+              color: activeTab === 'specification' ? 'var(--gov-navy)' : 'var(--text-secondary)',
+              backgroundColor: 'transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}
+          >
+            <BookOpen size={16} />
+            <span>Course Specification &amp; Labs</span>
+          </button>
+        )}
+
+        {application.category === 'NEW_BRANCH_INTRODUCTION' && (
+          <button
+            onClick={() => setActiveTab('specification')}
+            style={{
+              padding: '0.75rem 1.25rem',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              border: 'none',
+              borderBottom: activeTab === 'specification' ? '3px solid var(--gov-orange)' : '3px solid transparent',
+              color: activeTab === 'specification' ? 'var(--gov-navy)' : 'var(--text-secondary)',
+              backgroundColor: 'transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}
+          >
+            <GitBranch size={16} />
+            <span>Branch Specification &amp; Intake</span>
+          </button>
+        )}
+
         <button
           onClick={() => setActiveTab('documents')}
           style={{
@@ -417,7 +508,383 @@ export const ApplicationDetails: React.FC = () => {
         </button>
       </div>
 
-      {/* Tab 1: Documents & OCR */}
+      {/* Tab: Course Specification (NEW_COURSE_INTRODUCTION) */}
+      {activeTab === 'specification' && application.category === 'NEW_COURSE_INTRODUCTION' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-medium)',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                    {application.courseDetails?.courseName || 'Course Specification Pending'}
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: 'var(--radius-xs)',
+                      backgroundColor: 'var(--gov-blue-light)',
+                      color: 'var(--gov-blue)',
+                    }}
+                  >
+                    {application.courseDetails?.programmeLevel || 'UNDERGRADUATE'}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: 'var(--radius-xs)',
+                      backgroundColor: '#f3e8ff',
+                      color: '#6b21a8',
+                    }}
+                  >
+                    {application.courseDetails?.degreeType || 'BACHELOR_OF_TECHNOLOGY'}
+                  </span>
+                </div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                  Discipline: <strong>{application.courseDetails?.courseDiscipline || 'ENGINEERING_AND_TECHNOLOGY'}</strong> • Department: <strong>{application.courseDetails?.proposedDepartment || 'Computer Science & Engineering'}</strong>
+                </p>
+              </div>
+
+              {application.currentState === 'DRAFT' && (
+                <button
+                  onClick={() => setIsEditingCourse(!isEditingCourse)}
+                  className="btn btn-outline"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 700 }}
+                >
+                  <Edit3 size={14} />
+                  <span>{isEditingCourse ? 'Cancel Editing' : 'Edit Specification'}</span>
+                </button>
+              )}
+            </div>
+
+            {isEditingCourse ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  saveCourseMutation.mutate(courseForm as CourseDetailsDto)
+                }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '1px solid var(--border-light)', paddingTop: '1rem' }}
+              >
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Course Name</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={courseForm.courseName || ''}
+                      onChange={(e) => setCourseForm({ ...courseForm, courseName: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Proposed Intake</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={courseForm.proposedIntake || 60}
+                      onChange={(e) => setCourseForm({ ...courseForm, proposedIntake: parseInt(e.target.value) || 0 })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Duration (Years)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={courseForm.durationYears || 4}
+                      onChange={(e) => setCourseForm({ ...courseForm, durationYears: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Laboratories Setup</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={courseForm.laboratoriesCount || 4}
+                      onChange={(e) => setCourseForm({ ...courseForm, laboratoriesCount: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Professors</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={courseForm.professorsCount || 1}
+                      onChange={(e) => setCourseForm({ ...courseForm, professorsCount: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Associate Professors</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={courseForm.associateProfessorsCount || 2}
+                      onChange={(e) => setCourseForm({ ...courseForm, associateProfessorsCount: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Assistant Professors</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={courseForm.assistantProfessorsCount || 6}
+                      onChange={(e) => setCourseForm({ ...courseForm, assistantProfessorsCount: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Classrooms Available</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={courseForm.availableClassrooms || 3}
+                      onChange={(e) => setCourseForm({ ...courseForm, availableClassrooms: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Laboratory Equipment Details</label>
+                  <textarea
+                    rows={2}
+                    className="form-control"
+                    value={courseForm.laboratoryDetails || ''}
+                    onChange={(e) => setCourseForm({ ...courseForm, laboratoryDetails: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                  <button type="button" onClick={() => setIsEditingCourse(false)} className="btn btn-outline">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={saveCourseMutation.isPending} className="btn btn-primary" style={{ backgroundColor: 'var(--gov-orange)', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Save size={15} />
+                    <span>{saveCourseMutation.isPending ? 'Saving...' : 'Save Course Details'}</span>
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                  <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>PROPOSED INTAKE</span>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                      {application.courseDetails?.proposedIntake || 0} Seats
+                    </div>
+                  </div>
+                  <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>DURATION &amp; DELIVERY</span>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                      {application.courseDetails?.durationYears || 4} Years ({application.courseDetails?.modeOfDelivery || 'REGULAR'})
+                    </div>
+                  </div>
+                  <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>LABORATORIES SETUP</span>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                      {application.courseDetails?.laboratoriesCount || 0} Dedicated Labs
+                    </div>
+                  </div>
+                  <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>FACULTY IDENTIFIED</span>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                      {(application.courseDetails?.professorsCount || 0) + (application.courseDetails?.associateProfessorsCount || 0) + (application.courseDetails?.assistantProfessorsCount || 0)} Faculty Members
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+                  <div style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)' }}>
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--gov-navy)', marginBottom: '0.5rem' }}>
+                      Faculty Cadre Ratio Breakdown
+                    </h4>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      Professors: <strong>{application.courseDetails?.professorsCount || 0}</strong> • Associate Professors: <strong>{application.courseDetails?.associateProfessorsCount || 0}</strong> • Assistant Professors: <strong>{application.courseDetails?.assistantProfessorsCount || 0}</strong>
+                    </p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--gov-green)', fontWeight: 600, marginTop: '0.25rem' }}>
+                      Cadre Ratio Status: {application.courseDetails?.facultyStudentRatio || 'Compliant with AICTE 1:20 norm'}
+                    </p>
+                  </div>
+
+                  <div style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)' }}>
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--gov-navy)', marginBottom: '0.5rem' }}>
+                      Infrastructure &amp; Lab Notes
+                    </h4>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      {application.courseDetails?.laboratoryDetails || 'Specialized laboratories with state-of-the-art workstations and equipment.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Branch Specification (NEW_BRANCH_INTRODUCTION) */}
+      {activeTab === 'specification' && application.category === 'NEW_BRANCH_INTRODUCTION' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-medium)',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                    {application.branchDetails?.proposedBranchName || 'Branch Specification Pending'}
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: 'var(--radius-xs)',
+                      backgroundColor: 'var(--gov-blue-light)',
+                      color: 'var(--gov-blue)',
+                    }}
+                  >
+                    Parent: {application.branchDetails?.existingProgramme || 'ENGINEERING_AND_TECHNOLOGY'}
+                  </span>
+                </div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                  Existing Department: <strong>{application.branchDetails?.existingDepartment || 'Information Technology'}</strong>
+                </p>
+              </div>
+
+              {application.currentState === 'DRAFT' && (
+                <button
+                  onClick={() => setIsEditingBranch(!isEditingBranch)}
+                  className="btn btn-outline"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 700 }}
+                >
+                  <Edit3 size={14} />
+                  <span>{isEditingBranch ? 'Cancel Editing' : 'Edit Specification'}</span>
+                </button>
+              )}
+            </div>
+
+            {isEditingBranch ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  saveBranchMutation.mutate(branchForm as BranchDetailsDto)
+                }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '1px solid var(--border-light)', paddingTop: '1rem' }}
+              >
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Proposed Branch Name</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={branchForm.proposedBranchName || ''}
+                      onChange={(e) => setBranchForm({ ...branchForm, proposedBranchName: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Proposed Branch Intake</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={branchForm.proposedIntake || 60}
+                      onChange={(e) => setBranchForm({ ...branchForm, proposedIntake: parseInt(e.target.value) || 0 })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Existing Approved Intake</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={branchForm.existingApprovedIntake || 120}
+                      onChange={(e) => setBranchForm({ ...branchForm, existingApprovedIntake: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Core Faculty Count</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={branchForm.facultyCount || 4}
+                      onChange={(e) => setBranchForm({ ...branchForm, facultyCount: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Laboratories Available</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={branchForm.laboratoryCount || 2}
+                      onChange={(e) => setBranchForm({ ...branchForm, laboratoryCount: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                  <button type="button" onClick={() => setIsEditingBranch(false)} className="btn btn-outline">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={saveBranchMutation.isPending} className="btn btn-primary" style={{ backgroundColor: 'var(--gov-orange)', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Save size={15} />
+                    <span>{saveBranchMutation.isPending ? 'Saving...' : 'Save Branch Details'}</span>
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                  <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>PROPOSED BRANCH INTAKE</span>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                      {application.branchDetails?.proposedIntake || 0} Seats
+                    </div>
+                  </div>
+                  <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>EXISTING PARENT INTAKE</span>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                      {application.branchDetails?.existingApprovedIntake || 0} Seats
+                    </div>
+                  </div>
+                  <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>CORE FACULTY ALLOCATED</span>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                      {application.branchDetails?.facultyCount || 0} Faculty Members
+                    </div>
+                  </div>
+                  <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>SPECIALIZED LABS</span>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                      {application.branchDetails?.laboratoryCount || 0} Laboratories
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Documents & OCR */}
       {activeTab === 'documents' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Upload Form */}
@@ -471,6 +938,13 @@ export const ApplicationDetails: React.FC = () => {
                   <option value="LAND_REGISTRATION">Land Title Deed &amp; Survey Schedule</option>
                   <option value="AFFIDAVIT_FORMAT_1">Statutory Anti-Ragging Affidavit (Format-1)</option>
                   <option value="BOARD_RESOLUTION">Governing Body Board Resolution</option>
+                  <option value="FACULTY_LIST_QUALIFICATION">Faculty Cadre &amp; Qualification Roster (APH 2024)</option>
+                  <option value="LABORATORY_INFRASTRUCTURE_REPORT">Laboratory Setup &amp; Carpet Area Report</option>
+                  <option value="EQUIPMENT_UTILIZATION_CERTIFICATE">Equipment Stock &amp; Utilization Certificate</option>
+                  <option value="BUILDING_PLAN_APPROVAL">Municipal Building Plan Approval</option>
+                  <option value="FINANCIAL_AUDIT_REPORT">Audited Financial Statements (Last 3 Yrs)</option>
+                  <option value="SYLLABUS_CURRICULUM_APPROVAL">University Syllabus / Curriculum Endorsement</option>
+                  <option value="OTHER_SUPPORTING">Other Supporting Regulatory Document</option>
                 </select>
               </div>
 

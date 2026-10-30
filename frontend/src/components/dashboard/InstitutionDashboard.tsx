@@ -104,12 +104,49 @@ export const InstitutionDashboard: React.FC = () => {
                   <span>Institution Profile</span>
                 </Link>
               )}
+              <Link to="/documents-compliance" className="btn btn-secondary btn-sm" id="inst-dash-docs-compliance">
+                <FileCheck size={14} />
+                <span>Documents &amp; Compliance</span>
+              </Link>
               <Link to="/applications" className="btn btn-primary btn-sm" id="inst-dash-new-app" style={{ backgroundColor: 'var(--gov-blue)' }}>
                 <FileCheck size={14} />
                 <span>Approval Applications</span>
                 <ArrowRight size={13} />
               </Link>
             </div>
+          </div>
+
+          {/* Recommended Institution Navigation Bar */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '0.5rem',
+              marginTop: '1.25rem',
+              paddingTop: '0.75rem',
+              borderTop: '1px solid var(--border-light)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <Link to="/dashboard" className="btn btn-sm btn-primary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}>
+              Overview
+            </Link>
+            <Link to="/applications" className="btn btn-sm btn-outline" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}>
+              Applications
+            </Link>
+            <Link to="/documents-compliance" className="btn btn-sm btn-outline" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}>
+              Documents &amp; Compliance
+            </Link>
+            <Link to="/required-actions" className="btn btn-sm btn-outline" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}>
+              Required Actions
+            </Link>
+            <Link to="/alerts" className="btn btn-sm btn-outline" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}>
+              Alerts
+            </Link>
+            {institutionId && (
+              <Link to={`/institutions/${institutionId}`} className="btn btn-sm btn-outline" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}>
+                Institution Profile
+              </Link>
+            )}
           </div>
         </div>
       </div>

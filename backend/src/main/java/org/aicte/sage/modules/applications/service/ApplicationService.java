@@ -7,10 +7,18 @@ import org.aicte.sage.common.exception.ResourceNotFoundException;
 import org.aicte.sage.common.security.AuthoritativeAuthorizationService;
 import org.aicte.sage.common.security.UserPrincipal;
 import org.aicte.sage.modules.applications.dto.ApplicationDto;
+import org.aicte.sage.modules.applications.dto.BranchDetailsDto;
+import org.aicte.sage.modules.applications.dto.CourseDetailsDto;
 import org.aicte.sage.modules.applications.dto.CreateApplicationRequest;
+import org.aicte.sage.modules.applications.dto.SaveBranchDetailsRequest;
+import org.aicte.sage.modules.applications.dto.SaveCourseDetailsRequest;
 import org.aicte.sage.modules.applications.model.Application;
+import org.aicte.sage.modules.applications.model.ApplicationBranchDetails;
 import org.aicte.sage.modules.applications.model.ApplicationCategory;
+import org.aicte.sage.modules.applications.model.ApplicationCourseDetails;
 import org.aicte.sage.modules.applications.model.ApplicationState;
+import org.aicte.sage.modules.applications.repository.ApplicationBranchDetailsRepository;
+import org.aicte.sage.modules.applications.repository.ApplicationCourseDetailsRepository;
 import org.aicte.sage.modules.applications.repository.ApplicationRepository;
 import org.aicte.sage.modules.institutions.entity.Institution;
 import org.aicte.sage.modules.institutions.repository.InstitutionRepository;
@@ -44,6 +52,8 @@ public class ApplicationService {
     private final WorkflowDefinitionRepository workflowDefinitionRepository;
     private final UserRepository userRepository;
     private final WorkflowEngineService workflowEngineService;
+    private final ApplicationCourseDetailsRepository courseDetailsRepository;
+    private final ApplicationBranchDetailsRepository branchDetailsRepository;
     private final AuthoritativeAuthorizationService authService;
     private final AuditService auditService;
     private final SecureRandom random = new SecureRandom();
@@ -54,6 +64,8 @@ public class ApplicationService {
             WorkflowDefinitionRepository workflowDefinitionRepository,
             UserRepository userRepository,
             WorkflowEngineService workflowEngineService,
+            ApplicationCourseDetailsRepository courseDetailsRepository,
+            ApplicationBranchDetailsRepository branchDetailsRepository,
             AuthoritativeAuthorizationService authService,
             AuditService auditService
     ) {
@@ -62,6 +74,8 @@ public class ApplicationService {
         this.workflowDefinitionRepository = workflowDefinitionRepository;
         this.userRepository = userRepository;
         this.workflowEngineService = workflowEngineService;
+        this.courseDetailsRepository = courseDetailsRepository;
+        this.branchDetailsRepository = branchDetailsRepository;
         this.authService = authService;
         this.auditService = auditService;
     }
@@ -113,7 +127,135 @@ public class ApplicationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Application with ID '" + id + "' not found"));
 
         authService.checkAccessToInstitution(principal, app.getInstitution().getId(), "GET_APPLICATION");
-        return ApplicationDto.fromEntity(app);
+        ApplicationDto dto = ApplicationDto.fromEntity(app);
+
+        if (app.getCategory() == ApplicationCategory.NEW_COURSE_INTRODUCTION) {
+            courseDetailsRepository.findByApplicationId(id).ifPresent(c -> dto.setCourseDetails(CourseDetailsDto.fromEntity(c)));
+        } else if (app.getCategory() == ApplicationCategory.NEW_BRANCH_INTRODUCTION) {
+            branchDetailsRepository.findByApplicationId(id).ifPresent(b -> dto.setBranchDetails(BranchDetailsDto.fromEntity(b)));
+        }
+
+        return dto;
+    }
+
+    public CourseDetailsDto saveCourseDetails(UUID applicationId, SaveCourseDetailsRequest req, UserPrincipal principal) {
+        Application app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application with ID '" + applicationId + "' not found"));
+        authService.checkAccessToInstitution(principal, app.getInstitution().getId(), "SAVE_COURSE_DETAILS");
+
+        if (app.getCurrentState() != ApplicationState.DRAFT) {
+            throw new IllegalStateException("Course details can only be edited when application is in DRAFT state");
+        }
+
+        ApplicationCourseDetails details = courseDetailsRepository.findByApplicationId(applicationId)
+                .orElseGet(() -> {
+                    ApplicationCourseDetails d = new ApplicationCourseDetails();
+                    d.setApplication(app);
+                    return d;
+                });
+
+        details.setCourseName(req.courseName());
+        details.setProgrammeLevel(req.programmeLevel());
+        details.setDegreeType(req.degreeType());
+        details.setCourseDiscipline(req.courseDiscipline());
+        details.setProposedIntake(req.proposedIntake());
+        if (req.modeOfDelivery() != null) details.setModeOfDelivery(req.modeOfDelivery());
+        if (req.durationYears() != null) details.setDurationYears(req.durationYears());
+        details.setRegulatoryClassification(req.regulatoryClassification());
+        details.setProposedDepartment(req.proposedDepartment());
+        details.setExistingRelatedCourses(req.existingRelatedCourses());
+        if (req.availableClassrooms() != null) details.setAvailableClassrooms(req.availableClassrooms());
+        if (req.laboratoriesCount() != null) details.setLaboratoriesCount(req.laboratoriesCount());
+        details.setLaboratoryDetails(req.laboratoryDetails());
+        details.setEquipmentDetails(req.equipmentDetails());
+        if (req.libraryTitles() != null) details.setLibraryTitles(req.libraryTitles());
+        if (req.libraryVolumes() != null) details.setLibraryVolumes(req.libraryVolumes());
+        if (req.libraryJournals() != null) details.setLibraryJournals(req.libraryJournals());
+        if (req.professorsCount() != null) details.setProfessorsCount(req.professorsCount());
+        if (req.associateProfessorsCount() != null) details.setAssociateProfessorsCount(req.associateProfessorsCount());
+        if (req.assistantProfessorsCount() != null) details.setAssistantProfessorsCount(req.assistantProfessorsCount());
+        details.setFacultyStudentRatio(req.facultyStudentRatio());
+        details.setInfrastructureNotes(req.infrastructureNotes());
+
+        ApplicationCourseDetails saved = courseDetailsRepository.save(details);
+
+        auditService.recordEvent(
+                "COURSE_DETAILS_SAVED",
+                principal.getUsername(),
+                app.getInstitution().getId(),
+                "APPLICATION_COURSE_DETAILS",
+                saved.getId().toString(),
+                "UPDATE",
+                null,
+                "Saved course details for " + saved.getCourseName() + " on application " + app.getApplicationNumber()
+        );
+
+        return CourseDetailsDto.fromEntity(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public CourseDetailsDto getCourseDetails(UUID applicationId, UserPrincipal principal) {
+        Application app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application with ID '" + applicationId + "' not found"));
+        authService.checkAccessToInstitution(principal, app.getInstitution().getId(), "GET_COURSE_DETAILS");
+        return courseDetailsRepository.findByApplicationId(applicationId)
+                .map(CourseDetailsDto::fromEntity)
+                .orElse(null);
+    }
+
+    public BranchDetailsDto saveBranchDetails(UUID applicationId, SaveBranchDetailsRequest req, UserPrincipal principal) {
+        Application app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application with ID '" + applicationId + "' not found"));
+        authService.checkAccessToInstitution(principal, app.getInstitution().getId(), "SAVE_BRANCH_DETAILS");
+
+        if (app.getCurrentState() != ApplicationState.DRAFT) {
+            throw new IllegalStateException("Branch details can only be edited when application is in DRAFT state");
+        }
+
+        ApplicationBranchDetails details = branchDetailsRepository.findByApplicationId(applicationId)
+                .orElseGet(() -> {
+                    ApplicationBranchDetails d = new ApplicationBranchDetails();
+                    d.setApplication(app);
+                    return d;
+                });
+
+        details.setExistingProgramme(req.existingProgramme());
+        details.setExistingDepartment(req.existingDepartment());
+        details.setProposedBranchName(req.proposedBranchName());
+        details.setProposedIntake(req.proposedIntake());
+        if (req.existingApprovedIntake() != null) details.setExistingApprovedIntake(req.existingApprovedIntake());
+        if (req.facultyCount() != null) details.setFacultyCount(req.facultyCount());
+        if (req.staffCount() != null) details.setStaffCount(req.staffCount());
+        if (req.availableClassrooms() != null) details.setAvailableClassrooms(req.availableClassrooms());
+        if (req.laboratoryCount() != null) details.setLaboratoryCount(req.laboratoryCount());
+        details.setLaboratoryRequirements(req.laboratoryRequirements());
+        details.setEquipmentAvailability(req.equipmentAvailability());
+        details.setInstitutionDeclarations(req.institutionDeclarations());
+
+        ApplicationBranchDetails saved = branchDetailsRepository.save(details);
+
+        auditService.recordEvent(
+                "BRANCH_DETAILS_SAVED",
+                principal.getUsername(),
+                app.getInstitution().getId(),
+                "APPLICATION_BRANCH_DETAILS",
+                saved.getId().toString(),
+                "UPDATE",
+                null,
+                "Saved branch details for " + saved.getProposedBranchName() + " on application " + app.getApplicationNumber()
+        );
+
+        return BranchDetailsDto.fromEntity(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public BranchDetailsDto getBranchDetails(UUID applicationId, UserPrincipal principal) {
+        Application app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application with ID '" + applicationId + "' not found"));
+        authService.checkAccessToInstitution(principal, app.getInstitution().getId(), "GET_BRANCH_DETAILS");
+        return branchDetailsRepository.findByApplicationId(applicationId)
+                .map(BranchDetailsDto::fromEntity)
+                .orElse(null);
     }
 
     private static final java.util.Set<String> ALLOWED_SORT_FIELDS = java.util.Set.of("createdAt", "updatedAt", "applicationNumber", "academicYear");

@@ -1,6 +1,50 @@
 import { apiClient } from './client'
 import type { ApiResponseWrapper } from './authApi'
 
+export interface CourseDetailsDto {
+  id?: string
+  applicationId?: string
+  courseName: string
+  programmeLevel: string
+  degreeType: string
+  courseDiscipline: string
+  proposedIntake: number
+  modeOfDelivery?: string
+  durationYears?: number
+  regulatoryClassification?: string
+  proposedDepartment?: string
+  existingRelatedCourses?: string
+  availableClassrooms?: number
+  laboratoriesCount?: number
+  laboratoryDetails?: string
+  equipmentDetails?: string
+  libraryTitles?: number
+  libraryVolumes?: number
+  libraryJournals?: number
+  professorsCount?: number
+  associateProfessorsCount?: number
+  assistantProfessorsCount?: number
+  facultyStudentRatio?: string
+  infrastructureNotes?: string
+}
+
+export interface BranchDetailsDto {
+  id?: string
+  applicationId?: string
+  existingProgramme: string
+  existingDepartment: string
+  proposedBranchName: string
+  proposedIntake: number
+  existingApprovedIntake?: number
+  facultyCount?: number
+  staffCount?: number
+  availableClassrooms?: number
+  laboratoryCount?: number
+  laboratoryRequirements?: string
+  equipmentAvailability?: string
+  institutionDeclarations?: string
+}
+
 export interface ApplicationDto {
   id: string
   applicationNumber: string
@@ -17,6 +61,8 @@ export interface ApplicationDto {
   submittedAt?: string
   finalDecisionAt?: string
   version: number
+  courseDetails?: CourseDetailsDto
+  branchDetails?: BranchDetailsDto
   createdAt: string
   updatedAt: string
 }
@@ -239,6 +285,50 @@ export const applicationsApi = {
         method: 'POST',
         body: JSON.stringify(data),
       }
+    )
+    return res.data
+  },
+
+  saveCourseDetails: async (
+    applicationId: string,
+    data: CourseDetailsDto
+  ): Promise<CourseDetailsDto> => {
+    const res = await apiClient<ApiResponseWrapper<CourseDetailsDto>>(
+      `/api/v1/applications/${applicationId}/course-details`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    )
+    return res.data
+  },
+
+  getCourseDetails: async (applicationId: string): Promise<CourseDetailsDto> => {
+    const res = await apiClient<ApiResponseWrapper<CourseDetailsDto>>(
+      `/api/v1/applications/${applicationId}/course-details`,
+      { method: 'GET' }
+    )
+    return res.data
+  },
+
+  saveBranchDetails: async (
+    applicationId: string,
+    data: BranchDetailsDto
+  ): Promise<BranchDetailsDto> => {
+    const res = await apiClient<ApiResponseWrapper<BranchDetailsDto>>(
+      `/api/v1/applications/${applicationId}/branch-details`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    )
+    return res.data
+  },
+
+  getBranchDetails: async (applicationId: string): Promise<BranchDetailsDto> => {
+    const res = await apiClient<ApiResponseWrapper<BranchDetailsDto>>(
+      `/api/v1/applications/${applicationId}/branch-details`,
+      { method: 'GET' }
     )
     return res.data
   },

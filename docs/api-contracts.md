@@ -201,3 +201,87 @@ All list endpoints (`/api/v1/institutions`, `/api/v1/users`, `/api/v1/audit`) st
   - `ROLE_AICTE_ADMIN`: Full regulatory audit trail across all events.
   - Regional / Auditor / Scrutiny: Scoped to authorized jurisdictions and assigned institutions.
 - **Success Response**: `200 OK` (`PageResponse<AuditEventDto>`).
+
+---
+
+## 9. New Course & Branch Application Specifications (`/api/v1/applications`)
+
+### `POST /api/v1/applications/{applicationId}/course-details`
+- **Access**: Institution Officer (Application Owner) or `ROLE_AICTE_ADMIN`
+- **Request Body**: `CourseDetailsDto` (Course Name, Programme Level, Degree Type, Proposed Intake, Laboratories Count, Faculty Cadre Counts, Equipment Details).
+- **Success Response**: `200 OK` (`ApiResponseWrapper<CourseDetailsDto>`).
+
+### `GET /api/v1/applications/{applicationId}/course-details`
+- **Access**: Authorized Institution Officer, Regional Officer, or `ROLE_AICTE_ADMIN`
+- **Success Response**: `200 OK` (`ApiResponseWrapper<CourseDetailsDto>`).
+
+### `POST /api/v1/applications/{applicationId}/branch-details`
+- **Access**: Institution Officer (Application Owner) or `ROLE_AICTE_ADMIN`
+- **Request Body**: `BranchDetailsDto` (Existing Programme, Existing Department, Proposed Branch Name, Proposed Intake, Existing Approved Intake, Core Faculty Count, Laboratory Count).
+- **Success Response**: `200 OK` (`ApiResponseWrapper<BranchDetailsDto>`).
+
+### `GET /api/v1/applications/{applicationId}/branch-details`
+- **Access**: Authorized Institution Officer, Regional Officer, or `ROLE_AICTE_ADMIN`
+- **Success Response**: `200 OK` (`ApiResponseWrapper<BranchDetailsDto>`).
+
+---
+
+## 10. Document Compliance Tracking & Required Actions (`/api/v1/documents`, `/api/v1/corrective-actions`)
+
+### `GET /api/v1/documents`
+- **Access**: Authenticated (Tenancy scoped for institutions; jurisdiction scoped for officers)
+- **Parameters**: `institutionId`, `applicationId`, `category`, `verificationStatus`, `complianceStatus`, `search`, `page`, `size`
+- **Success Response**: `200 OK` (`PageResponse<DocumentDto>`).
+
+### `GET /api/v1/documents/{id}`
+- **Access**: Authorized Institution Officer, Regional Officer, or `ROLE_AICTE_ADMIN`
+- **Success Response**: `200 OK` (`DocumentDetailResponse` containing metadata, OCR fields, findings, corrective actions, and version history chain).
+
+### `POST /api/v1/documents`
+- **Access**: Authorized Institution Officer or `ROLE_AICTE_ADMIN`
+- **Request**: Multipart `file`, `documentName`, `documentCategory`, `documentType`, `validFrom`, `expiryDate`, optional `applicationId`.
+- **Validation**: Magic byte inspection (`%PDF-`, PNG, JPEG), SHA-256 hash.
+- **Success Response**: `201 Created` (`DocumentDto`).
+
+### `POST /api/v1/documents/{id}/replace`
+- **Access**: Authorized Institution Officer or `ROLE_AICTE_ADMIN`
+- **Request**: Multipart `file`, `reason`.
+- **Behavior**: Generates version `N+1`, preserves version `N`, links `previousVersionId` and `rootDocumentId`, and sets linked corrective actions to `SUBMITTED_FOR_REVIEW`.
+- **Success Response**: `200 OK` (`DocumentDto`).
+
+### `POST /api/v1/documents/{id}/clarify`
+- **Access**: Authorized Institution Officer
+- **Request Body**: `{"clarificationText": "..."}`
+- **Behavior**: Records clarification text, resets status to `PENDING_VERIFICATION`.
+- **Success Response**: `200 OK` (`DocumentDto`).
+
+### `POST /api/v1/documents/{id}/review`
+- **Access**: `ROLE_REGIONAL_OFFICER`, `ROLE_COMPLIANCE_OFFICER`, or `ROLE_AICTE_ADMIN`
+- **Request Body**: `{"verificationStatus": "VERIFIED" | "REJECTED" | "CLARIFICATION_REQUESTED", "complianceStatus": "...", "officerComments": "..."}`
+- **Behavior**: Updates verification status; if rejected, auto-generates `DocumentCorrectiveAction`.
+- **Success Response**: `200 OK` (`DocumentDto`).
+
+### `GET /api/v1/documents/compliance-summary`
+- **Access**: Authenticated
+- **Parameters**: `institutionId` (optional for officers)
+- **Success Response**: `200 OK` (`DocumentComplianceSummaryDto`).
+
+### `GET /api/v1/documents/{id}/preview` & `GET /api/v1/documents/{id}/download`
+- **Access**: Authorized tenant or regional officer
+- **Security**: Path traversal prevention via normalized boundary check.
+- **Success Response**: Binary resource with appropriate `Content-Disposition` and `Content-Type`.
+
+### `GET /api/v1/corrective-actions`
+- **Access**: Authenticated
+- **Parameters**: `institutionId`, `status`, `page`, `size`
+- **Success Response**: `200 OK` (`PageResponse<DocumentCorrectiveActionDto>`).
+
+### `POST /api/v1/corrective-actions/{id}/respond`
+- **Access**: Institution Officer
+- **Request Body**: `{"institutionResponse": "...", "resolutionEvidenceDocId": "..."}`
+- **Success Response**: `200 OK` (`DocumentCorrectiveActionDto` in `SUBMITTED_FOR_REVIEW`).
+
+### `POST /api/v1/corrective-actions/{id}/resolve`
+- **Access**: `ROLE_REGIONAL_OFFICER`, `ROLE_COMPLIANCE_OFFICER`, or `ROLE_AICTE_ADMIN`
+- **Request Body**: `{"status": "RESOLVED" | "REJECTED", "officerNotes": "..."}`
+- **Success Response**: `200 OK` (`DocumentCorrectiveActionDto`).

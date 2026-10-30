@@ -151,6 +151,23 @@ public class DocumentStorageService {
         }
     }
 
+    public org.springframework.core.io.Resource loadFileAsResource(String filePath) {
+        try {
+            Path file = Paths.get(filePath).toAbsolutePath().normalize();
+            if (!file.startsWith(this.storageDirectory)) {
+                throw new SecurityException("Path traversal attempt detected!");
+            }
+            org.springframework.core.io.Resource resource = new org.springframework.core.io.UrlResource(file.toUri());
+            if (resource.exists() && resource.isReadable()) {
+                return resource;
+            } else {
+                throw new org.aicte.sage.common.exception.ResourceNotFoundException("File not found or unreadable: " + filePath);
+            }
+        } catch (java.net.MalformedURLException e) {
+            throw new org.aicte.sage.common.exception.ResourceNotFoundException("File not found: " + filePath, e);
+        }
+    }
+
     public Path getStorageDirectory() {
         return storageDirectory;
     }

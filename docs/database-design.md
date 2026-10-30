@@ -208,17 +208,66 @@ erDiagram
 - `expires_at` (TIMESTAMPTZ, NOT NULL): Natural expiration timestamp of the token for cleanup.
 - `reason` (VARCHAR(255)): Reason for revocation (`User explicit server-side logout`, `Account suspended`, etc.).
 
+### Table: `application_course_details` (V14)
+- `id` (UUID, PK): Record ID.
+- `application_id` (UUID, NOT NULL, UNIQUE, FK -> `applications.id` ON DELETE CASCADE): Parent approval application.
+- `course_name` (VARCHAR(255), NOT NULL): Proposed course title (e.g. B.Tech Robotics).
+- `programme_level` (VARCHAR(64), NOT NULL): `UNDERGRADUATE`, `POSTGRADUATE`, `DIPLOMA`.
+- `degree_type` (VARCHAR(64), NOT NULL): `BACHELOR_OF_TECHNOLOGY`, `MASTER_OF_TECHNOLOGY`, etc.
+- `course_discipline` (VARCHAR(128), NOT NULL): Engineering, Pharmacy, Management, etc.
+- `proposed_intake` (INTEGER, NOT NULL): Proposed seat count.
+- `mode_of_delivery` (VARCHAR(32), DEFAULT 'FULL_TIME'): Delivery mode.
+- `duration_years` (INTEGER, DEFAULT 4): Programme duration.
+- `laboratories_count` (INTEGER, DEFAULT 0): Dedicated laboratories setup.
+- `professors_count`, `associate_professors_count`, `assistant_professors_count` (INTEGER): Cadre breakdown.
+- `faculty_student_ratio` (VARCHAR(32)): Cadre ratio compliance status.
+- `laboratory_details`, `equipment_details`, `infrastructure_notes` (TEXT): Equipment and facilities.
+
+### Table: `application_branch_details` (V14)
+- `id` (UUID, PK): Record ID.
+- `application_id` (UUID, NOT NULL, UNIQUE, FK -> `applications.id` ON DELETE CASCADE): Parent application.
+- `existing_programme` (VARCHAR(128), NOT NULL): Parent discipline.
+- `existing_department` (VARCHAR(255), NOT NULL): Host department.
+- `proposed_branch_name` (VARCHAR(255), NOT NULL): Specialization (e.g. AI & Data Science).
+- `proposed_intake` (INTEGER, NOT NULL): Proposed branch seats.
+- `existing_approved_intake` (INTEGER): Existing parent seats.
+- `faculty_count`, `laboratory_count` (INTEGER): Allocated resources.
+
+### Table: `document_corrective_actions` (V14)
+- `id` (UUID, PK): Record ID.
+- `document_id` (UUID, NOT NULL, FK -> `documents.id` ON DELETE CASCADE): Targeted document.
+- `institution_id` (UUID, NOT NULL, FK -> `institutions.id` ON DELETE CASCADE): Tenant institution.
+- `finding_id` (UUID, FK -> `scrutiny_findings.id`): Optional linked finding.
+- `action_type` (VARCHAR(64), NOT NULL): Action classification.
+- `title` (VARCHAR(255), NOT NULL): Summary title.
+- `description` (TEXT, NOT NULL): Statutory deficiency explanation.
+- `due_date` (TIMESTAMPTZ, NOT NULL): Remediation deadline.
+- `status` (VARCHAR(64), NOT NULL, DEFAULT 'OPEN'): `OPEN`, `SUBMITTED_FOR_REVIEW`, `RESOLVED`, `REJECTED`.
+- `institution_response` (TEXT): Institutional explanation.
+- `resolution_evidence_doc_id` (UUID, FK -> `documents.id`): Uploaded evidence.
+- `officer_notes` (TEXT): Officer verification comments.
+- `resolved_by` (UUID, FK -> `users.id`), `resolved_at` (TIMESTAMPTZ).
+
 ---
 
-## 4. Flyway Migration Versioning Rules
+## 4. Flyway Migration Versioning Catalog
 
 Migrations are stored in `backend/src/main/resources/db/migration/` (and profile seeds in `db/seed/`):
 - `V1__init_auth_and_institutions.sql`: Complete DDL baseline schema with constraints and indexes.
-- `V2__dev_seed_data.sql`: Phase 1 synthetic reference seed. Loaded only in `dev` and `test` environments.
-- `V3__phase2_institution_details_and_roles.sql`: Phase 2 DDL adding institutional profile fields, 4 statutory roles (`ROLE_EVC_COORDINATOR`, `ROLE_COMMITTEE_MEMBER`, `ROLE_COMPLIANCE_OFFICER`, `ROLE_AUDITOR`), granular permissions, and role-permission mappings.
-- `V4__phase2_seed_data.sql`: Phase 2 non-production demonstration data (enriching institutions with contact & GIS details, adding Pune and Chennai campuses, and demo user accounts for compliance, auditor, and EVC coordinator).
-- `V5__authorization_governance_and_aph_alignment.sql`: Phase 2.1 DDL introducing `jurisdiction_assignments`, `case_assignments`, `committee_appointments`, and `token_revocations`.
-- `V6__phase2_assignments_seed.sql`: Phase 2.1 non-production seed establishing explicit regional jurisdictions, case assignments, and statutory SCSC committee appointments for demonstration accounts.
+- `V2__dev_seed_data.sql`: Phase 1 synthetic reference seed.
+- `V3__phase2_institution_details_and_roles.sql`: Institutional profile fields, 4 statutory roles, granular permissions.
+- `V4__phase2_seed_data.sql`: Non-production demonstration institutions and user accounts.
+- `V5__authorization_governance_and_aph_alignment.sql`: Governance tables (`jurisdiction_assignments`, `case_assignments`, `committee_appointments`, `token_revocations`).
+- `V6__phase2_assignments_seed.sql`: Demonstration assignments and SCSC committee appointments.
+- `V7__phase3_applications_and_workflow.sql`: Applications, workflow definitions, states, transitions, documents, extracted fields, and scrutiny findings.
+- `V8__phase3_seed_data.sql`: Phase 3 sample applications and workflows (`WF_NEW_INSTITUTION`, `WF_EOA`, `WF_INCREASE_INTAKE`).
+- `V9__phase4_compliance_and_alerts.sql`: Compliance monitoring schedules, statutory deadlines, alert records, and notification templates.
+- `V10__phase4_seed_data.sql`: Compliance monitoring seeds.
+- `V11__evc_scheduling_engine.sql`: Expert profiles, panel records, and OR-Tools scheduling solver constraints.
+- `V12__evc_seed_data.sql`: Synthetic expert availability data.
+- `V13__distributed_job_locks.sql`: High-availability distributed job lock table for clustered scheduler sweeps.
+- `V14__new_course_branch_and_document_compliance.sql`: Schema migration uncoupling documents from applications, adding document validity/versioning columns, creating `application_course_details`, `application_branch_details`, and `document_corrective_actions`.
+- `V15__new_course_branch_seed_data.sql`: Workflow definitions (`WF_NEW_COURSE_INTRODUCTION`, `WF_NEW_BRANCH_INTRODUCTION`) and APH scrutiny rules (`RULE_APH_COURSE_FACULTY_RATIO`, `RULE_APH_COURSE_LABORATORY`, etc.).
 
 **Non-Destructive Evolution Policy**:
 1. Never edit a migration file after it has run in any shared environment.
