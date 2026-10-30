@@ -14,19 +14,14 @@ export const AppShell: React.FC = () => {
       <Navbar />
 
       {/* Main App Layout */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 'calc(100vh - 180px)' }}>
+      <div className="app-shell-container">
         <Sidebar />
         <main
-          style={{
-            flex: 1,
-            padding: '1.5rem 2rem',
-            overflowY: 'auto',
-            backgroundColor: 'var(--bg-page)',
-          }}
+          className="app-shell-main"
           id="main-content"
           role="main"
         >
-          <div style={{ maxWidth: 'var(--container-max-width)', margin: '0 auto' }}>
+          <div className="app-shell-content">
             <Outlet />
           </div>
         </main>

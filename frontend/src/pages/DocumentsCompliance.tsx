@@ -221,7 +221,7 @@ export const DocumentsCompliance: React.FC = () => {
       case 'REJECTED':
         return <span className="badge badge-danger" style={{ fontSize: '0.72rem' }}>REJECTED</span>
       case 'REQUIRES_CLARIFICATION':
-        return <span className="badge badge-danger" style={{ fontSize: '0.72rem', backgroundColor: '#f97316', color: '#fff' }}>CLARIFICATION NEEDED</span>
+        return <span className="badge badge-warning" style={{ fontSize: '0.72rem' }}>CLARIFICATION NEEDED</span>
       case 'UNDER_REVIEW':
         return <span className="badge badge-info" style={{ fontSize: '0.72rem' }}>UNDER REVIEW</span>
       default:

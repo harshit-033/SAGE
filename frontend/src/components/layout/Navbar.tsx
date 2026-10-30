@@ -51,9 +51,10 @@ export const Navbar: React.FC = () => {
             </div>
           </NavLink>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div className="gov-branding-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             {/* Jurisdiction Badge */}
             <div
+              className="gov-scope-badge"
               style={{
                 display: 'flex',
                 alignItems: 'center',

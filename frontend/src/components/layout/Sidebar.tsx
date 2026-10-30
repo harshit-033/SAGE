@@ -54,19 +54,7 @@ export const Sidebar: React.FC = () => {
   const institutionProfileUrl = primaryInstitutionId ? `/institutions/${primaryInstitutionId}` : '/institutions'
 
   return (
-    <aside
-      style={{
-        width: '240px',
-        backgroundColor: 'var(--bg-surface)',
-        borderRight: '1px solid var(--border-medium)',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        padding: '1.25rem 0.75rem',
-        minHeight: 'calc(100vh - 120px)',
-      }}
-      aria-label="Sidebar Navigation"
-    >
+    <aside className="app-sidebar" aria-label="Sidebar Navigation">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {/* Role-Specific Portal Section */}
         <div>
