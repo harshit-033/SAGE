@@ -38,6 +38,10 @@ sage:
       service-token: ${INTERNAL_SERVICE_TOKEN:}
   automation:
     service-url: ${AUTOMATION_SERVICE_URL:http://localhost:8000}
+  ai:
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-flash-lite-latest}
 
 management:
   endpoints:

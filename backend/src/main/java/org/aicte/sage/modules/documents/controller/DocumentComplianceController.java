@@ -82,6 +82,21 @@ public class DocumentComplianceController {
         return ResponseEntity.ok(ApiResponse.ok(res));
     }
 
+    @PostMapping(value = "/validate-ai", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('DOCUMENT_UPLOAD')")
+    @Operation(summary = "Validate document with SAGE AI (Gemini)", description = "Performs automated pre-upload validation for document format and potential forgery risks")
+    public ResponseEntity<ApiResponse<DocumentAiValidationResult>> validateWithAi(
+            @RequestParam(required = false) UUID institutionId,
+            @RequestParam(required = false) String documentName,
+            @RequestParam(required = false) DocumentType documentType,
+            @RequestParam("file") MultipartFile file
+    ) {
+        DocumentAiValidationResult result = complianceService.validateDocumentWithAi(
+                file, documentType, documentName, institutionId, getCurrentPrincipal()
+        );
+        return ResponseEntity.ok(ApiResponse.ok("SAGE AI validation completed", result));
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('DOCUMENT_UPLOAD')")
     @Operation(summary = "Upload institution document", description = "Uploads a new document to the institutional compliance registry")
@@ -93,10 +108,11 @@ public class DocumentComplianceController {
             @RequestParam(required = false) DocumentCategory documentCategory,
             @RequestParam(required = false) Instant validFrom,
             @RequestParam(required = false) Instant expiryDate,
+            @RequestParam(required = false) String preAnalysisReport,
             @RequestParam("file") MultipartFile file
     ) {
         DocumentDto dto = complianceService.uploadInstitutionDocument(
-                institutionId, applicationId, documentName, documentType, documentCategory, validFrom, expiryDate, file, getCurrentPrincipal()
+                institutionId, applicationId, documentName, documentType, documentCategory, validFrom, expiryDate, file, preAnalysisReport, getCurrentPrincipal()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Document uploaded successfully", dto));
     }

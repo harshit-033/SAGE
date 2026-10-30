@@ -58,6 +58,9 @@ public class Document {
     @Column(name = "clarification_text", columnDefinition = "TEXT")
     private String clarificationText;
 
+    @Column(name = "ai_analysis_report", columnDefinition = "TEXT")
+    private String aiAnalysisReport;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "institution_id", nullable = false)
     private Institution institution;
@@ -191,6 +194,9 @@ public class Document {
 
     public String getClarificationText() { return clarificationText; }
     public void setClarificationText(String clarificationText) { this.clarificationText = clarificationText; }
+
+    public String getAiAnalysisReport() { return aiAnalysisReport; }
+    public void setAiAnalysisReport(String aiAnalysisReport) { this.aiAnalysisReport = aiAnalysisReport; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

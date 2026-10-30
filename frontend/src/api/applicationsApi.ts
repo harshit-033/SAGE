@@ -1,5 +1,6 @@
 import { apiClient } from './client'
 import type { ApiResponseWrapper } from './authApi'
+import type { DocumentAiValidationResult } from './documentComplianceApi'
 
 export interface CourseDetailsDto {
   id?: string
@@ -92,6 +93,7 @@ export interface DocumentDto {
   ocrEngine?: string
   overallConfidence?: number
   uncertain: boolean
+  aiAnalysisReport?: string
   extractedFields: ExtractedFieldDto[]
   createdAt: string
   updatedAt: string
@@ -244,14 +246,36 @@ export const applicationsApi = {
     return res.data
   },
 
-  uploadDocument: async (
+  validateDocumentWithAi: async (
     applicationId: string,
     documentType: string,
     file: File
+  ): Promise<DocumentAiValidationResult> => {
+    const formData = new FormData()
+    formData.append('documentType', documentType)
+    formData.append('file', file)
+    const res = await apiClient<ApiResponseWrapper<DocumentAiValidationResult>>(
+      `/api/v1/applications/${applicationId}/documents/validate-ai`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    )
+    return res.data
+  },
+
+  uploadDocument: async (
+    applicationId: string,
+    documentType: string,
+    file: File,
+    preAnalysisReport?: string
   ): Promise<DocumentDto> => {
     const formData = new FormData()
     formData.append('documentType', documentType)
     formData.append('file', file)
+    if (preAnalysisReport) {
+      formData.append('preAnalysisReport', preAnalysisReport)
+    }
     const res = await apiClient<ApiResponseWrapper<DocumentDto>>(
       `/api/v1/applications/${applicationId}/documents`,
       {

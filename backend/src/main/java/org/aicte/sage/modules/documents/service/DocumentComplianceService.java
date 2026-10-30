@@ -60,6 +60,7 @@ public class DocumentComplianceService {
     private final AuditService auditService;
     private final AlertService alertService;
     private final JurisdictionAssignmentRepository jurisdictionRepository;
+    private final GeminiDocumentAnalysisService geminiAnalysisService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final Set<String> ALLOWED_DOC_SORT_FIELDS = Set.of("createdAt", "updatedAt", "originalFilename", "expiryDate", "documentCategory");
@@ -78,7 +79,8 @@ public class DocumentComplianceService {
             AuthoritativeAuthorizationService authService,
             AuditService auditService,
             AlertService alertService,
-            JurisdictionAssignmentRepository jurisdictionRepository
+            JurisdictionAssignmentRepository jurisdictionRepository,
+            GeminiDocumentAnalysisService geminiAnalysisService
     ) {
         this.documentRepository = documentRepository;
         this.correctiveActionRepository = correctiveActionRepository;
@@ -93,6 +95,7 @@ public class DocumentComplianceService {
         this.auditService = auditService;
         this.alertService = alertService;
         this.jurisdictionRepository = jurisdictionRepository;
+        this.geminiAnalysisService = geminiAnalysisService;
     }
 
     // =========================================================================
@@ -285,6 +288,29 @@ public class DocumentComplianceService {
     // 2. Upload Institution Document
     // =========================================================================
 
+    public DocumentAiValidationResult validateDocumentWithAi(
+            MultipartFile file,
+            DocumentType documentType,
+            String documentName,
+            UUID institutionId,
+            UserPrincipal principal
+    ) {
+        String instName = "Affiliated Technical Institution";
+        if (institutionId != null) {
+            instName = institutionRepository.findById(institutionId)
+                    .map(Institution::getName)
+                    .orElse("Technical Institution");
+        } else if (principal.hasRole("ROLE_INSTITUTION_OFFICER")) {
+            Set<UUID> instIds = principal.getAuthorizedInstitutionIds();
+            if (instIds != null && !instIds.isEmpty()) {
+                instName = institutionRepository.findById(instIds.iterator().next())
+                        .map(Institution::getName)
+                        .orElse("Technical Institution");
+            }
+        }
+        return geminiAnalysisService.analyzeDocument(file, documentType, documentName, instName);
+    }
+
     public DocumentDto uploadInstitutionDocument(
             UUID institutionId,
             UUID applicationId,
@@ -294,6 +320,21 @@ public class DocumentComplianceService {
             Instant validFrom,
             Instant expiryDate,
             MultipartFile file,
+            UserPrincipal principal
+    ) {
+        return uploadInstitutionDocument(institutionId, applicationId, documentName, documentType, documentCategory, validFrom, expiryDate, file, null, principal);
+    }
+
+    public DocumentDto uploadInstitutionDocument(
+            UUID institutionId,
+            UUID applicationId,
+            String documentName,
+            DocumentType documentType,
+            DocumentCategory documentCategory,
+            Instant validFrom,
+            Instant expiryDate,
+            MultipartFile file,
+            String preAnalysisReport,
             UserPrincipal principal
     ) {
         UUID effectiveInstId = institutionId;
@@ -350,6 +391,14 @@ public class DocumentComplianceService {
             }
         } else {
             doc.setComplianceStatus(DocumentComplianceStatus.COMPLIANT);
+        }
+
+        // SAGE AI Analysis Report by Gemini
+        if (preAnalysisReport != null && !preAnalysisReport.isBlank()) {
+            doc.setAiAnalysisReport(preAnalysisReport);
+        } else {
+            DocumentAiValidationResult aiResult = geminiAnalysisService.analyzeDocument(file, doc.getDocumentType(), doc.getDocumentName(), institution.getName());
+            doc.setAiAnalysisReport(aiResult.fullReport());
         }
 
         Document savedDoc = documentRepository.save(doc);
@@ -417,6 +466,10 @@ public class DocumentComplianceService {
         newDoc.setVerificationStatus(DocumentVerificationStatus.PENDING_REVIEW);
         newDoc.setComplianceStatus(DocumentComplianceStatus.COMPLIANT);
         newDoc.setClarificationText(replacementNotes);
+
+        // SAGE AI Analysis Report by Gemini
+        DocumentAiValidationResult aiResult = geminiAnalysisService.analyzeDocument(file, newDoc.getDocumentType(), newDoc.getDocumentName(), newDoc.getInstitution().getName());
+        newDoc.setAiAnalysisReport(aiResult.fullReport());
 
         Document savedNewDoc = documentRepository.save(newDoc);
 

@@ -34,6 +34,7 @@ public class DocumentDto {
     private UUID rootDocumentId;
     private String officerComments;
     private String clarificationText;
+    private String aiAnalysisReport;
     private Integer findingsCount = 0;
     private Integer openActionsCount = 0;
     private String expiryIndicator;
@@ -80,6 +81,7 @@ public class DocumentDto {
         }
         dto.setOfficerComments(doc.getOfficerComments());
         dto.setClarificationText(doc.getClarificationText());
+        dto.setAiAnalysisReport(doc.getAiAnalysisReport());
 
         // Compute expiry indicator and days
         if (doc.getExpiryDate() == null) {
@@ -174,6 +176,9 @@ public class DocumentDto {
 
     public String getClarificationText() { return clarificationText; }
     public void setClarificationText(String clarificationText) { this.clarificationText = clarificationText; }
+
+    public String getAiAnalysisReport() { return aiAnalysisReport; }
+    public void setAiAnalysisReport(String aiAnalysisReport) { this.aiAnalysisReport = aiAnalysisReport; }
 
     public Integer getFindingsCount() { return findingsCount; }
     public void setFindingsCount(Integer findingsCount) { this.findingsCount = findingsCount; }

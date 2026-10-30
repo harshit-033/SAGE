@@ -34,15 +34,30 @@ public class DocumentController {
                 .orElseThrow(() -> new IllegalStateException("Unauthenticated request"));
     }
 
+    @PostMapping(value = "/validate-ai", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('DOCUMENT_UPLOAD')")
+    @Operation(summary = "Validate application document with SAGE AI (Gemini)", description = "Runs pre-upload validation for document format and potential forgery risks")
+    public ResponseEntity<ApiResponse<org.aicte.sage.modules.documents.dto.DocumentAiValidationResult>> validateWithAi(
+            @PathVariable UUID applicationId,
+            @RequestParam("documentType") DocumentType documentType,
+            @RequestParam("file") MultipartFile file
+    ) {
+        org.aicte.sage.modules.documents.dto.DocumentAiValidationResult result = documentService.validateDocumentWithAi(
+                applicationId, documentType, file, getCurrentPrincipal()
+        );
+        return ResponseEntity.ok(ApiResponse.ok("SAGE AI validation completed", result));
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('DOCUMENT_UPLOAD')")
     @Operation(summary = "Upload compliance document", description = "Uploads and triggers automated Indra OCR analysis with field extraction")
     public ResponseEntity<ApiResponse<DocumentDto>> uploadDocument(
             @PathVariable UUID applicationId,
             @RequestParam("documentType") DocumentType documentType,
+            @RequestParam(value = "preAnalysisReport", required = false) String preAnalysisReport,
             @RequestParam("file") MultipartFile file
     ) {
-        DocumentDto dto = documentService.uploadDocument(applicationId, documentType, file, getCurrentPrincipal());
+        DocumentDto dto = documentService.uploadDocument(applicationId, documentType, file, preAnalysisReport, getCurrentPrincipal());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Document uploaded and processed successfully", dto));
     }
 

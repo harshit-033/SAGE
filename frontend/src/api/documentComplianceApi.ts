@@ -29,9 +29,23 @@ export interface DocumentDto {
   rootDocumentId?: string
   officerComments?: string
   clarificationText?: string
+  aiAnalysisReport?: string
   extractedFields?: ExtractedFieldDto[]
   createdAt: string
   updatedAt: string
+}
+
+export interface DocumentAiValidationResult {
+  hasIssues: boolean
+  forgeryRisk: 'LOW' | 'MEDIUM' | 'HIGH'
+  formatStatus: 'VALID' | 'MINOR_IRREGULARITY' | 'DEFICIENT'
+  title: string
+  summary: string
+  formatObservations: string[]
+  forgeryObservations: string[]
+  recommendations: string[]
+  fullReport: string
+  evaluatedAt?: string
 }
 
 export interface DocumentCorrectiveActionDto {
@@ -121,6 +135,14 @@ export const documentComplianceApi = {
       `/api/v1/documents/${id}`,
       { method: 'GET' }
     )
+    return res.data
+  },
+
+  validateDocumentWithAi: async (formData: FormData): Promise<DocumentAiValidationResult> => {
+    const res = await apiClient<ApiResponseWrapper<DocumentAiValidationResult>>('/api/v1/documents/validate-ai', {
+      method: 'POST',
+      body: formData,
+    })
     return res.data
   },
 

@@ -8,6 +8,7 @@ import org.aicte.sage.common.security.AuthoritativeAuthorizationService;
 import org.aicte.sage.common.security.UserPrincipal;
 import org.aicte.sage.modules.applications.model.Application;
 import org.aicte.sage.modules.applications.repository.ApplicationRepository;
+import org.aicte.sage.modules.documents.dto.DocumentAiValidationResult;
 import org.aicte.sage.modules.documents.dto.DocumentDto;
 import org.aicte.sage.modules.documents.dto.ExtractedFieldDto;
 import org.aicte.sage.modules.documents.model.Document;
@@ -40,6 +41,7 @@ public class DocumentService {
     private final DocumentOcrClient ocrClient;
     private final AuthoritativeAuthorizationService authService;
     private final AuditService auditService;
+    private final GeminiDocumentAnalysisService geminiAnalysisService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DocumentService(
@@ -50,7 +52,8 @@ public class DocumentService {
             DocumentStorageService storageService,
             DocumentOcrClient ocrClient,
             AuthoritativeAuthorizationService authService,
-            AuditService auditService
+            AuditService auditService,
+            GeminiDocumentAnalysisService geminiAnalysisService
     ) {
         this.documentRepository = documentRepository;
         this.extractedFieldRepository = extractedFieldRepository;
@@ -60,12 +63,35 @@ public class DocumentService {
         this.ocrClient = ocrClient;
         this.authService = authService;
         this.auditService = auditService;
+        this.geminiAnalysisService = geminiAnalysisService;
+    }
+
+    public DocumentAiValidationResult validateDocumentWithAi(
+            UUID applicationId,
+            DocumentType documentType,
+            MultipartFile file,
+            UserPrincipal principal
+    ) {
+        Application application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application with ID '" + applicationId + "' not found"));
+        authService.checkAccessToInstitution(principal, application.getInstitution().getId(), "DOCUMENT_UPLOAD");
+        return geminiAnalysisService.analyzeDocument(file, documentType, file != null ? file.getOriginalFilename() : "document.pdf", application.getInstitution().getName());
     }
 
     public DocumentDto uploadDocument(
             UUID applicationId,
             DocumentType documentType,
             MultipartFile file,
+            UserPrincipal principal
+    ) {
+        return uploadDocument(applicationId, documentType, file, null, principal);
+    }
+
+    public DocumentDto uploadDocument(
+            UUID applicationId,
+            DocumentType documentType,
+            MultipartFile file,
+            String preAnalysisReport,
             UserPrincipal principal
     ) {
         Application application = applicationRepository.findById(applicationId)
@@ -92,6 +118,14 @@ public class DocumentService {
         doc.setSha256Hash(meta.sha256Hash());
         doc.setOcrStatus(OcrStatus.PROCESSING);
         doc.setUploadedBy(uploader);
+
+        // SAGE AI Analysis Report by Gemini
+        if (preAnalysisReport != null && !preAnalysisReport.isBlank()) {
+            doc.setAiAnalysisReport(preAnalysisReport);
+        } else {
+            DocumentAiValidationResult aiResult = geminiAnalysisService.analyzeDocument(file, documentType, meta.originalFilename(), application.getInstitution().getName());
+            doc.setAiAnalysisReport(aiResult.fullReport());
+        }
 
         Document savedDoc = documentRepository.save(doc);
 

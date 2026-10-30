@@ -339,12 +339,14 @@ describe('Role-Specific Sidebar Navigation Matrix', () => {
     const { unmount } = render(
       <AuthContext.Provider
         value={{
-          user: { id: 'admin-1', username: 'admin@aicte.gov.in', roles: ['ROLE_AICTE_ADMIN'], institutions: [] },
+          user: { id: 'admin-1', username: 'admin@aicte.gov.in', email: 'admin@aicte.gov.in', fullName: 'AICTE Administrator', roles: ['ROLE_AICTE_ADMIN'], institutions: [] },
           token: 'mock-token',
-          isAuthenticated: true,
           isLoading: false,
           isAdmin: true,
+          isInstitutionOfficer: false,
           hasRole: (r: string) => r === 'ROLE_AICTE_ADMIN',
+          hasAnyRole: (roles: string[]) => roles.includes('ROLE_AICTE_ADMIN'),
+          hasPermission: () => true,
           login: vi.fn(),
           logout: vi.fn(),
         }}
@@ -365,12 +367,14 @@ describe('Role-Specific Sidebar Navigation Matrix', () => {
     render(
       <AuthContext.Provider
         value={{
-          user: { id: 'inst-1', username: 'inst@test.edu', roles: ['ROLE_INSTITUTION_OFFICER'], institutions: ['inst-id'] },
+          user: { id: 'inst-1', username: 'inst@test.edu', email: 'inst@test.edu', fullName: 'Institution Officer', roles: ['ROLE_INSTITUTION_OFFICER'], institutions: ['inst-id'] },
           token: 'mock-token',
-          isAuthenticated: true,
           isLoading: false,
           isAdmin: false,
+          isInstitutionOfficer: true,
           hasRole: (r: string) => r === 'ROLE_INSTITUTION_OFFICER',
+          hasAnyRole: (roles: string[]) => roles.includes('ROLE_INSTITUTION_OFFICER'),
+          hasPermission: () => false,
           login: vi.fn(),
           logout: vi.fn(),
         }}
