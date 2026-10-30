@@ -17,9 +17,14 @@ import org.aicte.sage.modules.documents.model.DocumentExtractedField;
 import org.aicte.sage.modules.documents.model.DocumentType;
 import org.aicte.sage.modules.documents.repository.DocumentExtractedFieldRepository;
 import org.aicte.sage.modules.documents.repository.DocumentRepository;
+import org.aicte.sage.modules.notifications.entity.AlertCategory;
+import org.aicte.sage.modules.notifications.entity.AlertPriority;
+import org.aicte.sage.modules.notifications.entity.AlertSeverity;
+import org.aicte.sage.modules.notifications.service.AlertService;
 import org.aicte.sage.modules.scrutiny.dto.ResolveFindingRequest;
 import org.aicte.sage.modules.scrutiny.dto.ScrutinyEvaluationDto;
 import org.aicte.sage.modules.scrutiny.dto.ScrutinyFindingDto;
+import org.aicte.sage.modules.scrutiny.dto.SubmitEvaluatorAssessmentRequest;
 import org.aicte.sage.modules.scrutiny.model.*;
 import org.aicte.sage.modules.scrutiny.repository.ScrutinyEvaluationRepository;
 import org.aicte.sage.modules.scrutiny.repository.ScrutinyFindingRepository;
@@ -56,6 +61,7 @@ public class ScrutinyEngineService {
     private final WorkflowEngineService workflowEngineService;
     private final AuthoritativeAuthorizationService authService;
     private final AuditService auditService;
+    private final AlertService alertService;
 
     @org.springframework.beans.factory.annotation.Value("${sage.scrutiny.ocr-confidence-threshold:0.70}")
     private double ocrConfidenceThreshold = 0.70;
@@ -72,7 +78,8 @@ public class ScrutinyEngineService {
             UserRepository userRepository,
             WorkflowEngineService workflowEngineService,
             AuthoritativeAuthorizationService authService,
-            AuditService auditService
+            AuditService auditService,
+            AlertService alertService
     ) {
         this.applicationRepository = applicationRepository;
         this.documentRepository = documentRepository;
@@ -86,6 +93,7 @@ public class ScrutinyEngineService {
         this.workflowEngineService = workflowEngineService;
         this.authService = authService;
         this.auditService = auditService;
+        this.alertService = alertService;
     }
 
     public ScrutinyEvaluationDto evaluateApplication(UUID applicationId, UserPrincipal principal) {
@@ -192,6 +200,43 @@ public class ScrutinyEngineService {
                 null,
                 "Scrutiny evaluation completed for " + application.getApplicationNumber() + ": " + finalStatus
         );
+
+        // Dispatch Scrutiny Notification
+        try {
+            if ("DEFICIENT".equals(finalStatus)) {
+                alertService.createAlert(
+                        "ALERT_SCRUTINY_DEFICIENT_" + application.getId(),
+                        "Statutory Deficiencies Flagged: " + application.getApplicationNumber(),
+                        summary,
+                        AlertCategory.WORKFLOW,
+                        AlertSeverity.WARNING,
+                        AlertPriority.HIGH,
+                        "APPLICATION",
+                        application.getId(),
+                        application.getInstitution().getId(),
+                        null,
+                        "ROLE_INSTITUTION_OFFICER",
+                        null
+                );
+            } else if ("PASSED".equals(finalStatus)) {
+                alertService.createAlert(
+                        "ALERT_SCRUTINY_PASSED_" + application.getId(),
+                        "Scrutiny Verified: " + application.getApplicationNumber(),
+                        summary,
+                        AlertCategory.WORKFLOW,
+                        AlertSeverity.INFO,
+                        AlertPriority.MEDIUM,
+                        "APPLICATION",
+                        application.getId(),
+                        application.getInstitution().getId(),
+                        null,
+                        "ROLE_REGIONAL_OFFICER",
+                        null
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Failed to dispatch scrutiny alert for application {}: {}", application.getId(), e.getMessage());
+        }
 
         ScrutinyEvaluationDto dto = ScrutinyEvaluationDto.fromEntity(savedEval);
         dto.setFindings(generatedFindings.stream().map(ScrutinyFindingDto::fromEntity).toList());
@@ -795,5 +840,86 @@ public class ScrutinyEngineService {
                 findings.add(f);
             }
         }
+    }
+
+    public ScrutinyEvaluationDto submitEvaluatorAssessment(
+            UUID applicationId,
+            SubmitEvaluatorAssessmentRequest request,
+            UserPrincipal principal
+    ) {
+        Application application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application with ID '" + applicationId + "' not found"));
+
+        authService.checkAccessToInstitution(principal, application.getInstitution().getId(), "SCRUTINY_EVALUATE");
+
+        User evaluator = userRepository.findById(principal.getId()).orElse(null);
+
+        ScrutinyEvaluation evaluation = new ScrutinyEvaluation();
+        evaluation.setApplication(application);
+        evaluation.setEvaluatedByUser(evaluator);
+        evaluation.setScore(request.score());
+        evaluation.setRecommendation(request.recommendation());
+        evaluation.setRemarks(request.remarks());
+        evaluation.setCriteriaBreakdownJson(request.criteriaBreakdownJson());
+
+        String status = "PASSED";
+        if (request.score() < 50 || "DEFICIENCY_RECTIFICATION".equalsIgnoreCase(request.recommendation()) || "REJECTED".equalsIgnoreCase(request.recommendation())) {
+            status = "DEFICIENT";
+        } else if ("REQUIRES_HUMAN_REVIEW".equalsIgnoreCase(request.recommendation())) {
+            status = "REQUIRES_HUMAN_REVIEW";
+        }
+        evaluation.setStatus(status);
+        evaluation.setSummary(request.summary() != null && !request.summary().isBlank()
+                ? request.summary()
+                : "Evaluator " + principal.getUsername() + " assessment: " + request.recommendation() + " (Score: " + request.score() + "/100). " + request.remarks());
+
+        ScrutinyEvaluation saved = evaluationRepository.save(evaluation);
+
+        // State transition side effect if application is in appropriate states
+        if ("DEFICIENT".equals(status)) {
+            if (application.getCurrentState() == ApplicationState.SUBMITTED || application.getCurrentState() == ApplicationState.UNDER_SCRUTINY || application.getCurrentState() == ApplicationState.RESUBMITTED) {
+                application.setCurrentState(ApplicationState.DEFICIENT);
+                applicationRepository.save(application);
+            }
+        } else if ("PASSED".equals(status)) {
+            if (application.getCurrentState() == ApplicationState.SUBMITTED || application.getCurrentState() == ApplicationState.UNDER_SCRUTINY || application.getCurrentState() == ApplicationState.RESUBMITTED) {
+                application.setCurrentState(ApplicationState.SCRUTINY_PASSED);
+                applicationRepository.save(application);
+            }
+        }
+
+        // Record Audit Event
+        auditService.recordEvent(
+                "EVALUATOR_ASSESSMENT_SUBMITTED",
+                principal.getUsername(),
+                application.getInstitution().getId(),
+                "SCRUTINY_EVALUATION",
+                saved.getId().toString(),
+                status,
+                null,
+                "Evaluator assessment submitted by " + principal.getUsername() + ": " + request.recommendation() + " (Score: " + request.score() + "/100)"
+        );
+
+        // Alert Institution
+        try {
+            alertService.createAlert(
+                    "ALERT_EVAL_ASSESSED_" + application.getId(),
+                    "Application Evaluator Assessment Completed: " + application.getApplicationNumber(),
+                    "Evaluator assessment completed for application " + application.getApplicationNumber() + ". Recommendation: " + request.recommendation() + " (Score: " + request.score() + "/100)",
+                    AlertCategory.WORKFLOW,
+                    "DEFICIENT".equals(status) ? AlertSeverity.WARNING : AlertSeverity.INFO,
+                    AlertPriority.HIGH,
+                    "APPLICATION",
+                    application.getId(),
+                    application.getInstitution().getId(),
+                    null,
+                    "ROLE_INSTITUTION_OFFICER",
+                    null
+            );
+        } catch (Exception e) {
+            log.warn("Failed to dispatch evaluator assessment alert for application {}: {}", application.getId(), e.getMessage());
+        }
+
+        return ScrutinyEvaluationDto.fromEntity(saved);
     }
 }

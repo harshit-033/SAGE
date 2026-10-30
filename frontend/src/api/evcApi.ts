@@ -28,6 +28,20 @@ export interface EvcInspectionDto {
   status: InspectionStatus
   assignedCommittee: AssignedExpertDto[]
   specialInstructions?: string
+  reportFindings?: string
+  reportRecommendation?: string
+  infrastructureVerified?: boolean
+  facultyVerified?: boolean
+  conductedAt?: string
+  submittedByName?: string
+}
+
+export interface SubmitInspectionReportRequest {
+  reportFindings: string
+  recommendation: string
+  infrastructureVerified: boolean
+  facultyVerified: boolean
+  remarks?: string
 }
 
 export interface ExpertDto {
@@ -109,6 +123,16 @@ export const evcApi = {
   cancelInspection: (id: string, reason: string): Promise<{ message: string }> => {
     return apiClient<{ message: string }>(`/api/v1/evc/inspections/${id}/cancel?reason=${encodeURIComponent(reason)}`, {
       method: 'POST',
+    })
+  },
+
+  submitInspectionReport: (
+    inspectionId: string,
+    data: SubmitInspectionReportRequest
+  ): Promise<EvcInspectionDto> => {
+    return apiClient<EvcInspectionDto>(`/api/v1/evc/inspections/${inspectionId}/report`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     })
   },
 }

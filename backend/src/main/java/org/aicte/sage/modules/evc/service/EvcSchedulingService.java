@@ -48,4 +48,9 @@ public interface EvcSchedulingService {
      * Cancels an inspection or its schedule.
      */
     void cancelInspection(UUID inspectionId, String reason, UserPrincipal principal);
+
+    /**
+     * Submits an EVC inspection report, records committee findings, and advances the application workflow to EVC_CONDUCTED.
+     */
+    EvcInspectionDto submitInspectionReport(UUID inspectionId, org.aicte.sage.modules.evc.dto.SubmitInspectionReportRequest request, UserPrincipal principal);
 }

@@ -15,6 +15,10 @@ public class ScrutinyEvaluationDto {
     private String summary;
     private String evaluatedByName;
     private Instant evaluatedAt;
+    private Integer score;
+    private String recommendation;
+    private String remarks;
+    private String criteriaBreakdownJson;
     private List<ScrutinyFindingDto> findings = new ArrayList<>();
 
     public ScrutinyEvaluationDto() {}
@@ -33,6 +37,10 @@ public class ScrutinyEvaluationDto {
             dto.setEvaluatedByName("Automated Scrutiny Engine");
         }
         dto.setEvaluatedAt(e.getEvaluatedAt());
+        dto.setScore(e.getScore());
+        dto.setRecommendation(e.getRecommendation());
+        dto.setRemarks(e.getRemarks());
+        dto.setCriteriaBreakdownJson(e.getCriteriaBreakdownJson());
         return dto;
     }
 
@@ -56,4 +64,16 @@ public class ScrutinyEvaluationDto {
 
     public List<ScrutinyFindingDto> getFindings() { return findings; }
     public void setFindings(List<ScrutinyFindingDto> findings) { this.findings = findings; }
+
+    public Integer getScore() { return score; }
+    public void setScore(Integer score) { this.score = score; }
+
+    public String getRecommendation() { return recommendation; }
+    public void setRecommendation(String recommendation) { this.recommendation = recommendation; }
+
+    public String getRemarks() { return remarks; }
+    public void setRemarks(String remarks) { this.remarks = remarks; }
+
+    public String getCriteriaBreakdownJson() { return criteriaBreakdownJson; }
+    public void setCriteriaBreakdownJson(String criteriaBreakdownJson) { this.criteriaBreakdownJson = criteriaBreakdownJson; }
 }

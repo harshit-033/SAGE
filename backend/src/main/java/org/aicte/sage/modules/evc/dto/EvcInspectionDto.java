@@ -3,6 +3,7 @@ package org.aicte.sage.modules.evc.dto;
 import org.aicte.sage.modules.evc.entity.EvcInspection;
 import org.aicte.sage.modules.evc.entity.InspectionStatus;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
@@ -23,6 +24,12 @@ public record EvcInspectionDto(
         LocalDate scheduledEndDate,
         InspectionStatus status,
         String specialInstructions,
+        String reportFindings,
+        String reportRecommendation,
+        Boolean infrastructureVerified,
+        Boolean facultyVerified,
+        Instant conductedAt,
+        String submittedByName,
         List<AssignedExpertDto> assignedCommittee
 ) {
     public static EvcInspectionDto fromEntity(EvcInspection inspection, List<AssignedExpertDto> committee) {
@@ -31,6 +38,7 @@ public record EvcInspectionDto(
         UUID instId = inspection.getInstitution() != null ? inspection.getInstitution().getId() : null;
         UUID appId = inspection.getApplication() != null ? inspection.getApplication().getId() : null;
         String appNum = inspection.getApplication() != null ? inspection.getApplication().getApplicationNumber() : "";
+        String submitter = inspection.getSubmittedByUser() != null ? inspection.getSubmittedByUser().getFullName() : null;
 
         return new EvcInspectionDto(
                 inspection.getId(),
@@ -47,6 +55,12 @@ public record EvcInspectionDto(
                 inspection.getScheduledEndDate(),
                 inspection.getStatus(),
                 inspection.getSpecialInstructions(),
+                inspection.getReportFindings(),
+                inspection.getReportRecommendation(),
+                inspection.getInfrastructureVerified() != null ? inspection.getInfrastructureVerified() : false,
+                inspection.getFacultyVerified() != null ? inspection.getFacultyVerified() : false,
+                inspection.getConductedAt(),
+                submitter,
                 committee != null ? committee : Collections.emptyList()
         );
     }

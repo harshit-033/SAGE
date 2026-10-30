@@ -10,6 +10,10 @@ import org.aicte.sage.modules.evc.repository.CommitteeAssignmentRepository;
 import org.aicte.sage.modules.evc.repository.EvcInspectionRepository;
 import org.aicte.sage.modules.evc.scheduler.model.ScheduledInspection;
 import org.aicte.sage.modules.evc.scheduler.model.SchedulingResult;
+import org.aicte.sage.modules.notifications.entity.AlertCategory;
+import org.aicte.sage.modules.notifications.entity.AlertPriority;
+import org.aicte.sage.modules.notifications.entity.AlertSeverity;
+import org.aicte.sage.modules.notifications.service.AlertService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -30,15 +34,18 @@ public class SchedulePersistenceService {
     private final EvcInspectionRepository inspectionRepository;
     private final CommitteeAssignmentRepository assignmentRepository;
     private final ApplicationRepository applicationRepository;
+    private final AlertService alertService;
 
     public SchedulePersistenceService(
             EvcInspectionRepository inspectionRepository,
             CommitteeAssignmentRepository assignmentRepository,
-            ApplicationRepository applicationRepository
+            ApplicationRepository applicationRepository,
+            AlertService alertService
     ) {
         this.inspectionRepository = inspectionRepository;
         this.assignmentRepository = assignmentRepository;
         this.applicationRepository = applicationRepository;
+        this.alertService = alertService;
     }
 
     /**
@@ -143,6 +150,30 @@ public class SchedulePersistenceService {
             String appNum = (savedInspection.getApplication() != null)
                     ? savedInspection.getApplication().getApplicationNumber()
                     : "";
+
+            // Dispatch notification to institution
+            try {
+                if (instId != null) {
+                    alertService.createAlert(
+                            "ALERT_EVC_SCHEDULED_" + savedInspection.getId(),
+                            "EVC Inspection Scheduled: " + instName,
+                            "An Expert Visit Committee inspection has been scheduled for " + instName +
+                                    " (" + appNum + ") from " + si.getScheduledStartDate() + " to " + si.getScheduledEndDate() +
+                                    " with " + assignedExpertDtos.size() + " allocated committee experts.",
+                            AlertCategory.WORKFLOW,
+                            AlertSeverity.INFO,
+                            AlertPriority.HIGH,
+                            "EVC_INSPECTION",
+                            savedInspection.getId(),
+                            instId,
+                            null,
+                            "ROLE_INSTITUTION_OFFICER",
+                            null
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("Failed to dispatch EVC scheduled alert for inspection {}: {}", savedInspection.getId(), e.getMessage());
+            }
 
             results.add(new ScheduledInspectionResultDto(
                     savedInspection.getId(),

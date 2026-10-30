@@ -195,4 +195,40 @@ class EvcPersistenceAndServiceTest {
         ScheduledInspectionResultDto scheduledDto = response.scheduledInspections().get(0);
         assertThat(scheduledDto.assignedExperts().stream().noneMatch(e -> e.id().equals(savedAffiliated.getId()))).isTrue();
     }
+
+    @Test
+    @DisplayName("Persistence Test 4: Submitting EVC inspection report marks inspection COMPLETED and advances workflow to EVC_CONDUCTED")
+    void testSubmitInspectionReportAdvancesWorkflowToEvcConducted() {
+        UserPrincipal admin = createAdminPrincipal();
+        UUID inspId = UUID.fromString("ffffffff-ffff-ffff-ffff-000000000001");
+
+        // 1. First ensure inspection is SCHEDULED
+        SchedulingRequestDto scheduleReq = new SchedulingRequestDto(List.of(inspId), true, 10);
+        SchedulingResponseDto scheduleResp = schedulingService.schedule(scheduleReq, admin);
+        assertThat(scheduleResp.status()).isIn(SchedulingStatus.OPTIMAL, SchedulingStatus.FEASIBLE);
+
+        // 2. Submit EVC Inspection Report
+        SubmitInspectionReportRequest reportReq = new SubmitInspectionReportRequest(
+                "Physical inspection verified all core computing labs, fire safety clearance, and faculty attendance rosters in order.",
+                "RECOMMENDED_FOR_APPROVAL",
+                true,
+                true,
+                "Exemplary infrastructure in robotics laboratory."
+        );
+
+        EvcInspectionDto result = schedulingService.submitInspectionReport(inspId, reportReq, admin);
+
+        assertThat(result.status()).isEqualTo(InspectionStatus.COMPLETED);
+        assertThat(result.reportFindings()).contains("Physical inspection verified all core computing labs");
+        assertThat(result.reportRecommendation()).isEqualTo("RECOMMENDED_FOR_APPROVAL");
+        assertThat(result.infrastructureVerified()).isTrue();
+        assertThat(result.facultyVerified()).isTrue();
+        assertThat(result.conductedAt()).isNotNull();
+
+        // 3. Verify audit log was written
+        boolean auditPresent = auditEventRepository.findAll().stream()
+                .anyMatch(a -> a.getEventType().equals("EVC_REPORT_SUBMITTED") && a.getResourceId().contains(inspId.toString()));
+        assertThat(auditPresent).isTrue();
+    }
 }
+

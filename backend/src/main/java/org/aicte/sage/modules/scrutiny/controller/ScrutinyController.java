@@ -74,4 +74,15 @@ public class ScrutinyController {
         ScrutinyFindingDto resolved = scrutinyEngineService.resolveFinding(findingId, request, getCurrentPrincipal());
         return ResponseEntity.ok(ApiResponse.ok("Deficiency finding resolved successfully", resolved));
     }
+
+    @PostMapping("/assess")
+    @PreAuthorize("hasAnyRole('ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_SCRUTINY_OFFICER', 'ROLE_COMMITTEE_MEMBER')")
+    @Operation(summary = "Submit structured evaluator assessment", description = "Records evaluator criteria scores, remarks, and recommendation")
+    public ResponseEntity<ApiResponse<ScrutinyEvaluationDto>> submitEvaluatorAssessment(
+            @PathVariable UUID applicationId,
+            @Valid @RequestBody org.aicte.sage.modules.scrutiny.dto.SubmitEvaluatorAssessmentRequest request
+    ) {
+        ScrutinyEvaluationDto evaluation = scrutinyEngineService.submitEvaluatorAssessment(applicationId, request, getCurrentPrincipal());
+        return ResponseEntity.ok(ApiResponse.ok("Evaluator assessment recorded successfully", evaluation));
+    }
 }

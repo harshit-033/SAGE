@@ -405,4 +405,56 @@ public class Phase3WorkflowAndScrutinyTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail", containsString("Application is already in state")));
     }
+
+    @Test
+    @DisplayName("Scrutiny Engine: Evaluator assessment scores application and transitions workflow to SCRUTINY_PASSED")
+    void testEvaluatorAssessmentTransitionsWorkflow() throws Exception {
+        // Create fresh application for Delhi
+        CreateApplicationRequest req = new CreateApplicationRequest(
+                UUID.fromString(DELHI_INST_ID),
+                "2024-25",
+                ApplicationCategory.EXTENSION_OF_APPROVAL
+        );
+
+        MvcResult createResult = mockMvc.perform(post("/api/v1/applications")
+                        .header("Authorization", "Bearer " + delhiOfficerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String appId = objectMapper.readTree(createResult.getResponse().getContentAsString()).at("/data/id").asText();
+
+        // Submit application -> SUBMITTED
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/submit")
+                        .header("Authorization", "Bearer " + delhiOfficerToken))
+                .andExpect(status().isOk());
+
+        // Perform Evaluator Assessment
+        org.aicte.sage.modules.scrutiny.dto.SubmitEvaluatorAssessmentRequest assessReq =
+                new org.aicte.sage.modules.scrutiny.dto.SubmitEvaluatorAssessmentRequest(
+                        94,
+                        "RECOMMENDED_FOR_APPROVAL",
+                        "All statutory infrastructure and academic criteria verified in compliance with APH Chapter I.",
+                        "Comprehensive verification completed",
+                        "{\"landVerified\": true, \"facultyRatio\": \"1:15\"}"
+                );
+
+        mockMvc.perform(post("/api/v1/applications/" + appId + "/scrutiny/assess")
+                        .header("Authorization", "Bearer " + regionalToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(assessReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.score").value(94))
+                .andExpect(jsonPath("$.data.recommendation").value("RECOMMENDED_FOR_APPROVAL"))
+                .andExpect(jsonPath("$.data.status").value("PASSED"));
+
+        // Verify application transitioned to SCRUTINY_PASSED
+        mockMvc.perform(get("/api/v1/applications/" + appId)
+                        .header("Authorization", "Bearer " + delhiOfficerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.currentState").value("SCRUTINY_PASSED"));
+    }
 }
+
+

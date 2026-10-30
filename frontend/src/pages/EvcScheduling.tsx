@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { evcApi } from '../api/evcApi'
-import type { EvcInspectionDto, SchedulingResponseDto } from '../api/evcApi'
+import type { EvcInspectionDto, SchedulingResponseDto, SubmitInspectionReportRequest } from '../api/evcApi'
 import { useAuth } from '../context/AuthContext'
 import { StatusBadge } from '../components/common/StatusBadge'
 import { Modal } from '../components/common/Modal'
@@ -17,6 +17,7 @@ import {
   UserCheck,
   Cpu,
   RefreshCw,
+  ClipboardCheck,
 } from 'lucide-react'
 
 export const EvcScheduling: React.FC = () => {
@@ -28,6 +29,13 @@ export const EvcScheduling: React.FC = () => {
     isAdmin ||
     hasRole('ROLE_EVC_COORDINATOR') ||
     hasRole('ROLE_REGIONAL_OFFICER')
+
+  const canReport =
+    isAdmin ||
+    hasRole('ROLE_REGIONAL_OFFICER') ||
+    hasRole('ROLE_EVC_COORDINATOR') ||
+    hasRole('ROLE_COMMITTEE_MEMBER') ||
+    hasRole('ROLE_EVC_MEMBER')
 
   // Tabs: 'pending' | 'scheduled' | 'experts'
   const [activeTab, setActiveTab] = useState<'pending' | 'scheduled' | 'experts'>('pending')
@@ -42,6 +50,16 @@ export const EvcScheduling: React.FC = () => {
   // Details Modal State
   const [selectedInspectionForDetails, setSelectedInspectionForDetails] = useState<EvcInspectionDto | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+
+  // Report Modal State
+  const [selectedInspectionForReport, setSelectedInspectionForReport] = useState<EvcInspectionDto | null>(null)
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+  const [reportFindings, setReportFindings] = useState('')
+  const [reportRecommendation, setReportRecommendation] = useState('RECOMMENDED')
+  const [infrastructureVerified, setInfrastructureVerified] = useState(true)
+  const [facultyVerified, setFacultyVerified] = useState(true)
+  const [reportRemarks, setReportRemarks] = useState('')
+  const [reportError, setReportError] = useState<string | null>(null)
 
   // Queries
   const {
@@ -83,6 +101,24 @@ export const EvcScheduling: React.FC = () => {
     onError: (err: Error & { problem?: { detail?: string } }) => {
       setSchedulingError(err?.problem?.detail || err.message || 'Scheduling execution failed')
       setSolverResult(null)
+    },
+  })
+
+  // Inspection Report Submission Mutation
+  const submitReportMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: SubmitInspectionReportRequest }) =>
+      evcApi.submitInspectionReport(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['evc', 'scheduled'] })
+      queryClient.invalidateQueries({ queryKey: ['evc', 'pending'] })
+      setIsReportModalOpen(false)
+      setSelectedInspectionForReport(null)
+      setReportFindings('')
+      setReportRemarks('')
+      setReportError(null)
+    },
+    onError: (err: Error & { problem?: { detail?: string } }) => {
+      setReportError(err?.problem?.detail || err.message || 'Failed to submit inspection report')
     },
   })
 
@@ -783,23 +819,56 @@ export const EvcScheduling: React.FC = () => {
                     <td style={{ padding: '0.65rem 0.75rem' }}>
                       <StatusBadge status={inspection.status} />
                     </td>
-                    <td style={{ padding: '0.65rem 0.75rem', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDetails(inspection)}
-                        style={{
-                          padding: '0.3rem 0.6rem',
-                          border: '1px solid var(--border-medium)',
-                          backgroundColor: 'var(--bg-surface)',
-                          color: 'var(--gov-blue)',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Details
-                      </button>
+                    <td style={{ padding: '0.65rem 0.75rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetails(inspection)}
+                          style={{
+                            padding: '0.3rem 0.6rem',
+                            border: '1px solid var(--border-medium)',
+                            backgroundColor: 'var(--bg-surface)',
+                            color: 'var(--gov-blue)',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Details
+                        </button>
+                        {canReport && (inspection.status === 'SCHEDULED' || inspection.status === 'IN_PROGRESS') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedInspectionForReport(inspection)
+                              setReportFindings('')
+                              setReportRecommendation('RECOMMENDED')
+                              setInfrastructureVerified(true)
+                              setFacultyVerified(true)
+                              setReportRemarks('')
+                              setReportError(null)
+                              setIsReportModalOpen(true)
+                            }}
+                            style={{
+                              padding: '0.3rem 0.6rem',
+                              border: 'none',
+                              backgroundColor: 'var(--gov-orange)',
+                              color: '#ffffff',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                            }}
+                          >
+                            <ClipboardCheck size={12} />
+                            <span>Submit Report</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -1026,6 +1095,60 @@ export const EvcScheduling: React.FC = () => {
               )}
             </div>
 
+            {/* Completed Report Section */}
+            {selectedInspectionForDetails.status === 'COMPLETED' && (
+              <div
+                style={{
+                  marginTop: '0.5rem',
+                  borderTop: '1px solid var(--border-light)',
+                  paddingTop: '0.75rem',
+                  backgroundColor: 'var(--bg-surface-secondary)',
+                  padding: '0.75rem',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              >
+                <div style={{ fontWeight: 700, color: 'var(--gov-navy)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <ClipboardCheck size={16} color="var(--gov-green)" />
+                  <span>Official EVC Inspection Report</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Committee Recommendation</span>
+                    <div style={{ fontWeight: 700, color: selectedInspectionForDetails.reportRecommendation === 'RECOMMENDED' ? 'var(--gov-green)' : 'var(--gov-orange)' }}>
+                      {selectedInspectionForDetails.reportRecommendation || 'RECOMMENDED'}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Conducted / Reported</span>
+                    <div style={{ fontWeight: 500 }}>
+                      {selectedInspectionForDetails.conductedAt ? new Date(selectedInspectionForDetails.conductedAt).toLocaleDateString() : 'Recorded'}
+                      {selectedInspectionForDetails.submittedByName && ` by ${selectedInspectionForDetails.submittedByName}`}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Physical Infrastructure</span>
+                    <div style={{ fontWeight: 600, color: selectedInspectionForDetails.infrastructureVerified ? 'var(--gov-green)' : 'var(--text-muted)' }}>
+                      {selectedInspectionForDetails.infrastructureVerified ? '✔ Verified On-Site' : 'Not Verified'}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Faculty Cadre &amp; Roster</span>
+                    <div style={{ fontWeight: 600, color: selectedInspectionForDetails.facultyVerified ? 'var(--gov-green)' : 'var(--text-muted)' }}>
+                      {selectedInspectionForDetails.facultyVerified ? '✔ Verified On-Site' : 'Not Verified'}
+                    </div>
+                  </div>
+                </div>
+                {selectedInspectionForDetails.reportFindings && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Committee Observations &amp; Findings</span>
+                    <p style={{ marginTop: '0.2rem', fontSize: '0.82rem', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
+                      {selectedInspectionForDetails.reportFindings}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
               <button
                 type="button"
@@ -1045,6 +1168,174 @@ export const EvcScheduling: React.FC = () => {
               </button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* Submit Inspection Report Modal */}
+      {isReportModalOpen && selectedInspectionForReport && (
+        <Modal
+          isOpen={isReportModalOpen}
+          onClose={() => {
+            setIsReportModalOpen(false)
+            setSelectedInspectionForReport(null)
+          }}
+          title={`Submit EVC Inspection Report: ${selectedInspectionForReport.institutionName}`}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!reportFindings.trim()) {
+                setReportError('Please enter detailed inspection observations and findings.')
+                return
+              }
+              submitReportMutation.mutate({
+                id: selectedInspectionForReport.id,
+                data: {
+                  reportFindings: reportFindings.trim(),
+                  recommendation: reportRecommendation,
+                  infrastructureVerified,
+                  facultyVerified,
+                  remarks: reportRemarks.trim() || undefined,
+                },
+              })
+            }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.85rem' }}
+          >
+            {reportError && (
+              <div
+                style={{
+                  padding: '0.65rem 0.85rem',
+                  backgroundColor: 'var(--status-danger-bg)',
+                  color: 'var(--status-danger-text)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                }}
+              >
+                <AlertTriangle size={15} />
+                <span>{reportError}</span>
+              </div>
+            )}
+
+            <div>
+              <label style={{ display: 'block', fontWeight: 600, color: 'var(--gov-navy)', marginBottom: '0.25rem' }}>
+                Statutory Recommendation *
+              </label>
+              <select
+                value={reportRecommendation}
+                onChange={(e) => setReportRecommendation(e.target.value)}
+                className="form-control"
+                style={{ fontSize: '0.85rem' }}
+              >
+                <option value="RECOMMENDED">RECOMMENDED — Fulfills AICTE APH Norms for Approval</option>
+                <option value="DEFICIENT">DEFICIENT — Critical Shortfall Identified Requiring Rectification</option>
+                <option value="REQUIRES_HEARING">REQUIRES_HEARING — Refer to Standing Hearing Committee (SHC)</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: 'var(--radius-sm)' }}>
+              <span style={{ fontWeight: 600, color: 'var(--gov-navy)', fontSize: '0.8rem' }}>On-Site Physical Verifications</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={infrastructureVerified}
+                  onChange={(e) => setInfrastructureVerified(e.target.checked)}
+                />
+                <span>Physical Infrastructure &amp; Laboratories Verified (Carpet Area, Specialized Equipment)</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={facultyVerified}
+                  onChange={(e) => setFacultyVerified(e.target.checked)}
+                />
+                <span>Faculty Cadre Ratios (1:20 norm) &amp; Original Academic Credentials Inspected</span>
+              </label>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontWeight: 600, color: 'var(--gov-navy)', marginBottom: '0.25rem' }}>
+                Committee Findings &amp; Observations *
+              </label>
+              <textarea
+                value={reportFindings}
+                onChange={(e) => setReportFindings(e.target.value)}
+                placeholder="Enter detailed factual findings from the physical or virtual inspection visit..."
+                rows={4}
+                className="form-control"
+                style={{ fontSize: '0.82rem', fontFamily: 'inherit' }}
+                required
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontWeight: 600, color: 'var(--gov-navy)', marginBottom: '0.25rem' }}>
+                Additional Notes / Special Instructions
+              </label>
+              <input
+                type="text"
+                value={reportRemarks}
+                onChange={(e) => setReportRemarks(e.target.value)}
+                placeholder="e.g. Recommended for academic session 2026-27 with annual compliance audit"
+                className="form-control"
+                style={{ fontSize: '0.82rem' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsReportModalOpen(false)
+                  setSelectedInspectionForReport(null)
+                }}
+                disabled={submitReportMutation.isPending}
+                style={{
+                  padding: '0.45rem 1rem',
+                  border: '1px solid var(--border-medium)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitReportMutation.isPending}
+                style={{
+                  padding: '0.45rem 1.15rem',
+                  border: 'none',
+                  backgroundColor: 'var(--gov-orange)',
+                  color: '#ffffff',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: submitReportMutation.isPending ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+              >
+                {submitReportMutation.isPending ? (
+                  <>
+                    <RefreshCw size={14} className="spin" />
+                    <span>Submitting Inspection Report...</span>
+                  </>
+                ) : (
+                  <>
+                    <ClipboardCheck size={14} />
+                    <span>Submit Official Inspection Report</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>

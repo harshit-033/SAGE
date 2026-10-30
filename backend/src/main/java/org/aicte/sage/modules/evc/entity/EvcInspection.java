@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import org.aicte.sage.modules.applications.model.Application;
 import org.aicte.sage.modules.institutions.entity.Institution;
+import org.aicte.sage.modules.users.entity.User;
 
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -74,6 +75,25 @@ public class EvcInspection {
 
     @Column(name = "special_instructions", length = 500)
     private String specialInstructions;
+
+    @Column(name = "report_findings", columnDefinition = "TEXT")
+    private String reportFindings;
+
+    @Column(name = "report_recommendation", length = 64)
+    private String reportRecommendation;
+
+    @Column(name = "infrastructure_verified")
+    private Boolean infrastructureVerified = false;
+
+    @Column(name = "faculty_verified")
+    private Boolean facultyVerified = false;
+
+    @Column(name = "conducted_at")
+    private Instant conductedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "submitted_by_user_id")
+    private User submittedByUser;
 
     @Version
     @Column(name = "version", nullable = false)
@@ -249,6 +269,54 @@ public class EvcInspection {
 
     public void setSpecialInstructions(String specialInstructions) {
         this.specialInstructions = specialInstructions;
+    }
+
+    public String getReportFindings() {
+        return reportFindings;
+    }
+
+    public void setReportFindings(String reportFindings) {
+        this.reportFindings = reportFindings;
+    }
+
+    public String getReportRecommendation() {
+        return reportRecommendation;
+    }
+
+    public void setReportRecommendation(String reportRecommendation) {
+        this.reportRecommendation = reportRecommendation;
+    }
+
+    public Boolean getInfrastructureVerified() {
+        return infrastructureVerified;
+    }
+
+    public void setInfrastructureVerified(Boolean infrastructureVerified) {
+        this.infrastructureVerified = infrastructureVerified;
+    }
+
+    public Boolean getFacultyVerified() {
+        return facultyVerified;
+    }
+
+    public void setFacultyVerified(Boolean facultyVerified) {
+        this.facultyVerified = facultyVerified;
+    }
+
+    public Instant getConductedAt() {
+        return conductedAt;
+    }
+
+    public void setConductedAt(Instant conductedAt) {
+        this.conductedAt = conductedAt;
+    }
+
+    public User getSubmittedByUser() {
+        return submittedByUser;
+    }
+
+    public void setSubmittedByUser(User submittedByUser) {
+        this.submittedByUser = submittedByUser;
     }
 
     public Long getVersion() {

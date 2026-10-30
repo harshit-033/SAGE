@@ -7,6 +7,7 @@ import {
   type ScrutinyFindingDto,
   type CourseDetailsDto,
   type BranchDetailsDto,
+  type SubmitEvaluatorAssessmentRequest,
 } from '../api/applicationsApi'
 import { useAuth } from '../context/AuthContext'
 import { useMessage } from '../context/MessageContext'
@@ -29,6 +30,8 @@ import {
   Edit3,
   Save,
   XCircle,
+  Award,
+  CheckCircle,
 } from 'lucide-react'
 
 export const ApplicationDetails: React.FC = () => {
@@ -56,6 +59,13 @@ export const ApplicationDetails: React.FC = () => {
   const [transitionReason, setTransitionReason] = useState<string>('')
   const [transitionError, setTransitionError] = useState<string | null>(null)
 
+  // Evaluator Assessment Modal State
+  const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState<boolean>(false)
+  const [assessmentScore, setAssessmentScore] = useState<number>(85)
+  const [assessmentRecommendation, setAssessmentRecommendation] = useState<string>('RECOMMENDED_APPROVAL')
+  const [assessmentRemarks, setAssessmentRemarks] = useState<string>('')
+  const [assessmentError, setAssessmentError] = useState<string | null>(null)
+
   // Specification Edit States
   const [isEditingCourse, setIsEditingCourse] = useState(false)
   const [courseForm, setCourseForm] = useState<Partial<CourseDetailsDto>>({})
@@ -81,6 +91,13 @@ export const ApplicationDetails: React.FC = () => {
   const { data: findings = [] } = useQuery({
     queryKey: ['application-findings', id],
     queryFn: () => applicationsApi.getFindings(id!),
+    enabled: !!id,
+  })
+
+  // Fetch scrutiny evaluations
+  const { data: evaluations = [] } = useQuery({
+    queryKey: ['application-evaluations', id],
+    queryFn: () => applicationsApi.getEvaluations(id!),
     enabled: !!id,
   })
 
@@ -142,6 +159,26 @@ export const ApplicationDetails: React.FC = () => {
     },
     onError: (err: unknown) => {
       handleApiError(err, 'Resolution Notice', 'Failed to resolve finding')
+    },
+  })
+
+  const assessMutation = useMutation({
+    mutationFn: (data: SubmitEvaluatorAssessmentRequest) =>
+      applicationsApi.assessApplication(id!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['application', id] })
+      queryClient.invalidateQueries({ queryKey: ['application-evaluations', id] })
+      queryClient.invalidateQueries({ queryKey: ['application-findings', id] })
+      queryClient.invalidateQueries({ queryKey: ['application-transitions', id] })
+      setIsAssessmentModalOpen(false)
+      setAssessmentRemarks('')
+      setAssessmentError(null)
+      showSuccess('Evaluator Assessment Recorded', 'Structured evaluation score and statutory recommendation committed.')
+    },
+    onError: (err: unknown) => {
+      handleApiError(err, 'Assessment Notice', 'Failed to commit evaluator assessment')
+      const msg = err instanceof Error ? err.message : 'Assessment submission failed'
+      setAssessmentError(msg)
     },
   })
 
@@ -1218,24 +1255,174 @@ export const ApplicationDetails: React.FC = () => {
               </p>
             </div>
 
-            <button
-              onClick={() => evaluateScrutinyMutation.mutate()}
-              disabled={evaluateScrutinyMutation.isPending}
-              className="btn btn-primary"
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+              {isOfficerOrAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const latest = evaluations && evaluations.length > 0 ? evaluations[0] : null
+                    setAssessmentScore(latest?.score ?? 85)
+                    setAssessmentRecommendation(latest?.recommendation ?? 'RECOMMENDED_APPROVAL')
+                    setAssessmentRemarks(latest?.remarks ?? '')
+                    setAssessmentError(null)
+                    setIsAssessmentModalOpen(true)
+                  }}
+                  className="btn btn-primary"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    backgroundColor: 'var(--gov-orange)',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                  }}
+                  id="btn-conduct-evaluator-assessment"
+                >
+                  <Award size={15} />
+                  <span>{evaluations && evaluations.length > 0 && evaluations[0].score != null ? 'Update Evaluator Assessment' : 'Conduct Evaluator Assessment'}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => evaluateScrutinyMutation.mutate()}
+                disabled={evaluateScrutinyMutation.isPending}
+                className="btn btn-outline"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--gov-blue)',
+                  borderColor: 'var(--gov-blue)',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                }}
+              >
+                <Cpu size={15} />
+                <span>{evaluateScrutinyMutation.isPending ? 'Evaluating Rules...' : 'Re-evaluate All Rules'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Evaluator Assessment Summary Card */}
+          {evaluations && evaluations.length > 0 && evaluations[0].score != null && (
+            <div
               style={{
+                backgroundColor: 'var(--bg-surface)',
+                padding: '1.25rem',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-medium)',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                backgroundColor: 'var(--gov-blue)',
-                color: '#ffffff',
-                fontWeight: 700,
-                fontSize: '0.85rem',
+                flexDirection: 'column',
+                gap: '0.75rem',
               }}
             >
-              <Cpu size={15} />
-              <span>{evaluateScrutinyMutation.isPending ? 'Evaluating Rules...' : 'Re-evaluate All Rules'}</span>
-            </button>
-          </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Award size={20} color="var(--gov-orange)" />
+                  <div>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--gov-navy)' }}>
+                      Structured Evaluator Assessment
+                    </h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Evaluated by {evaluations[0].evaluatedByName} &bull; {new Date(evaluations[0].evaluatedAt).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>COMPOSITE SCORE</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: evaluations[0].score >= 75 ? 'var(--gov-green)' : evaluations[0].score >= 50 ? 'var(--gov-orange)' : 'var(--gov-red)' }}>
+                      {evaluations[0].score} / 100
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      padding: '0.3rem 0.65rem',
+                      borderRadius: 'var(--radius-xs)',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      backgroundColor:
+                        evaluations[0].recommendation === 'RECOMMENDED_APPROVAL'
+                          ? 'var(--status-success-bg)'
+                          : evaluations[0].recommendation === 'DEFICIENCY_RECTIFICATION'
+                          ? 'var(--status-danger-bg)'
+                          : 'var(--gov-blue-light)',
+                      color:
+                        evaluations[0].recommendation === 'RECOMMENDED_APPROVAL'
+                          ? 'var(--status-success-text)'
+                          : evaluations[0].recommendation === 'DEFICIENCY_RECTIFICATION'
+                          ? 'var(--status-danger-text)'
+                          : 'var(--gov-blue)',
+                    }}
+                  >
+                    {evaluations[0].recommendation?.replace(/_/g, ' ')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Score Progress Bar */}
+              <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--border-light)', borderRadius: '4px', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    width: `${Math.min(100, Math.max(0, evaluations[0].score))}%`,
+                    height: '100%',
+                    backgroundColor: evaluations[0].score >= 75 ? 'var(--gov-green)' : evaluations[0].score >= 50 ? 'var(--gov-orange)' : 'var(--gov-red)',
+                    transition: 'width 0.3s ease',
+                  }}
+                />
+              </div>
+
+              {/* Remarks */}
+              {evaluations[0].remarks && (
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', backgroundColor: 'var(--bg-surface-secondary)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-sm)' }}>
+                  <strong>Evaluator Remarks:</strong> {evaluations[0].remarks}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* EVC Inspection Notice if Scheduled */}
+          {application.currentState === 'EVC_SCHEDULED' && (
+            <div
+              style={{
+                backgroundColor: 'var(--gov-blue-light)',
+                border: '1px solid var(--gov-blue)',
+                padding: '0.85rem 1.15rem',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Clock size={18} color="var(--gov-blue)" />
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--gov-navy)' }}>
+                  Expert Visit Committee (EVC) Inspection has been scheduled for this institution.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/evc-scheduling')}
+                style={{
+                  padding: '0.35rem 0.85rem',
+                  border: 'none',
+                  backgroundColor: 'var(--gov-blue)',
+                  color: '#ffffff',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Go to EVC Inspection Portal &rarr;
+              </button>
+            </div>
+          )}
 
           {/* Findings Cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1566,6 +1753,140 @@ export const ApplicationDetails: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Evaluator Assessment Modal */}
+      {isAssessmentModalOpen && (
+        <Modal
+          isOpen={isAssessmentModalOpen}
+          onClose={() => setIsAssessmentModalOpen(false)}
+          title={`Conduct Evaluator Assessment: ${application?.applicationNumber}`}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!assessmentRemarks.trim()) {
+                setAssessmentError('Please enter evaluative remarks and statutory justification.')
+                return
+              }
+              assessMutation.mutate({
+                score: assessmentScore,
+                recommendation: assessmentRecommendation,
+                remarks: assessmentRemarks.trim(),
+                summary: `Evaluator assessment: ${assessmentRecommendation} (${assessmentScore}/100). ${assessmentRemarks.trim()}`,
+              })
+            }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.85rem' }}
+          >
+            {assessmentError && (
+              <div style={{ padding: '0.65rem 0.85rem', backgroundColor: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <AlertTriangle size={15} />
+                <span>{assessmentError}</span>
+              </div>
+            )}
+
+            {/* Criteria Info Banner */}
+            <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+              <span style={{ fontWeight: 700, color: 'var(--gov-navy)', fontSize: '0.8rem' }}>APH Statutory Scoring &amp; Scrutiny Matrix</span>
+              <ul style={{ margin: '0.35rem 0 0 1.15rem', padding: 0, fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                <li>Document Authenticity &amp; OCR Verification (25 pts)</li>
+                <li>Physical Infrastructure, Carpet Area &amp; Laboratories (25 pts)</li>
+                <li>Faculty Cadre Ratios (1:20 norm) &amp; Professor Appointments (25 pts)</li>
+                <li>Land Title, Fire Safety &amp; Municipal Clearances (25 pts)</li>
+              </ul>
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <label style={{ fontWeight: 600, color: 'var(--gov-navy)' }}>
+                  Evaluator Composite Compliance Score (0–100) *
+                </label>
+                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: assessmentScore >= 75 ? 'var(--gov-green)' : assessmentScore >= 50 ? 'var(--gov-orange)' : 'var(--gov-red)' }}>
+                  {assessmentScore} / 100
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={assessmentScore}
+                onChange={(e) => setAssessmentScore(parseInt(e.target.value, 10))}
+                style={{ width: '100%', cursor: 'pointer' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontWeight: 600, color: 'var(--gov-navy)', marginBottom: '0.25rem' }}>
+                Statutory Recommendation *
+              </label>
+              <select
+                value={assessmentRecommendation}
+                onChange={(e) => setAssessmentRecommendation(e.target.value)}
+                className="form-control"
+                style={{ fontSize: '0.85rem' }}
+              >
+                <option value="RECOMMENDED_APPROVAL">RECOMMENDED_APPROVAL — Cleared Scrutiny for Final Approval</option>
+                <option value="RECOMMENDED_EVC_INSPECTION">RECOMMENDED_EVC_INSPECTION — Forward to Expert Visit Committee</option>
+                <option value="DEFICIENCY_RECTIFICATION">DEFICIENCY_RECTIFICATION — Deficiencies Flagged; Applicant Must Rectify</option>
+                <option value="REJECTED">REJECTED — Severe Non-Compliance; Recommend Refusal</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontWeight: 600, color: 'var(--gov-navy)', marginBottom: '0.25rem' }}>
+                Evaluator Remarks &amp; Statutory Justification *
+              </label>
+              <textarea
+                rows={3}
+                className="form-control"
+                value={assessmentRemarks}
+                onChange={(e) => setAssessmentRemarks(e.target.value)}
+                placeholder="Enter detailed assessment observations, committee recommendations, and APH compliance rationale..."
+                required
+                style={{ fontSize: '0.82rem', fontFamily: 'inherit' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setIsAssessmentModalOpen(false)}
+                disabled={assessMutation.isPending}
+                className="btn btn-outline"
+                style={{ fontSize: '0.8rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={assessMutation.isPending}
+                className="btn btn-primary"
+                style={{
+                  backgroundColor: 'var(--gov-orange)',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+              >
+                {assessMutation.isPending ? (
+                  <>
+                    <RefreshCw size={14} className="spin" />
+                    <span>Committing Assessment...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={14} />
+                    <span>Commit Evaluator Assessment</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   )
 }

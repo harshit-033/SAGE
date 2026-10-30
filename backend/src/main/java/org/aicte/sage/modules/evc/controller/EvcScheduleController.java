@@ -99,4 +99,16 @@ public class EvcScheduleController {
         schedulingService.cancelInspection(id, reason, principal);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/inspections/{id}/report")
+    @PreAuthorize("hasAnyRole('ROLE_AICTE_ADMIN', 'ROLE_REGIONAL_OFFICER', 'ROLE_EVC_COORDINATOR', 'ROLE_COMMITTEE_MEMBER', 'ROLE_EVC_MEMBER')")
+    @Operation(summary = "Submit EVC inspection report, record committee findings, and advance workflow to EVC_CONDUCTED")
+    public ResponseEntity<EvcInspectionDto> submitInspectionReport(
+            @PathVariable UUID id,
+            @Valid @RequestBody SubmitInspectionReportRequest request,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        EvcInspectionDto inspection = schedulingService.submitInspectionReport(id, request, principal);
+        return ResponseEntity.ok(inspection);
+    }
 }

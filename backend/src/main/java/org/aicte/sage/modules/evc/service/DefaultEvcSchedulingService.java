@@ -4,6 +4,7 @@ import org.aicte.sage.common.audit.AuditService;
 import org.aicte.sage.common.exception.ResourceNotFoundException;
 import org.aicte.sage.common.security.AuthoritativeAuthorizationService;
 import org.aicte.sage.common.security.UserPrincipal;
+import org.aicte.sage.modules.applications.model.ApplicationState;
 import org.aicte.sage.modules.evc.dto.*;
 import org.aicte.sage.modules.evc.entity.*;
 import org.aicte.sage.modules.evc.repository.CommitteeAssignmentRepository;
@@ -12,6 +13,14 @@ import org.aicte.sage.modules.evc.repository.ExpertAvailabilityRepository;
 import org.aicte.sage.modules.evc.repository.ExpertRepository;
 import org.aicte.sage.modules.evc.scheduler.EvcCpSatScheduler;
 import org.aicte.sage.modules.evc.scheduler.model.*;
+import org.aicte.sage.modules.notifications.entity.AlertCategory;
+import org.aicte.sage.modules.notifications.entity.AlertPriority;
+import org.aicte.sage.modules.notifications.entity.AlertSeverity;
+import org.aicte.sage.modules.notifications.service.AlertService;
+import org.aicte.sage.modules.users.entity.User;
+import org.aicte.sage.modules.users.repository.UserRepository;
+import org.aicte.sage.modules.workflow.dto.TransitionRequest;
+import org.aicte.sage.modules.workflow.service.WorkflowEngineService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -21,6 +30,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.function.Function;
@@ -45,6 +55,9 @@ public class DefaultEvcSchedulingService implements EvcSchedulingService {
     private final SchedulePersistenceService persistenceService;
     private final AuthoritativeAuthorizationService authService;
     private final AuditService auditService;
+    private final UserRepository userRepository;
+    private final WorkflowEngineService workflowEngineService;
+    private final AlertService alertService;
 
     public DefaultEvcSchedulingService(
             EvcInspectionRepository inspectionRepository,
@@ -54,7 +67,10 @@ public class DefaultEvcSchedulingService implements EvcSchedulingService {
             EvcCpSatScheduler scheduler,
             SchedulePersistenceService persistenceService,
             AuthoritativeAuthorizationService authService,
-            AuditService auditService
+            AuditService auditService,
+            UserRepository userRepository,
+            WorkflowEngineService workflowEngineService,
+            AlertService alertService
     ) {
         this.inspectionRepository = inspectionRepository;
         this.expertRepository = expertRepository;
@@ -64,6 +80,9 @@ public class DefaultEvcSchedulingService implements EvcSchedulingService {
         this.persistenceService = persistenceService;
         this.authService = authService;
         this.auditService = auditService;
+        this.userRepository = userRepository;
+        this.workflowEngineService = workflowEngineService;
+        this.alertService = alertService;
     }
 
     @Override
@@ -382,6 +401,80 @@ public class DefaultEvcSchedulingService implements EvcSchedulingService {
                 null,
                 "EVC inspection cancelled. Reason: " + reason
         );
+    }
+
+    @Override
+    @Transactional
+    public EvcInspectionDto submitInspectionReport(UUID inspectionId, SubmitInspectionReportRequest request, UserPrincipal principal) {
+        EvcInspection inspection = inspectionRepository.findById(inspectionId)
+                .orElseThrow(() -> new ResourceNotFoundException("EVC inspection with ID '" + inspectionId + "' not found"));
+
+        authService.checkAccessToInstitution(principal, inspection.getInstitution().getId(), "EVC_REPORT_SUBMIT");
+
+        boolean isAdmin = principal.hasRole("ROLE_AICTE_ADMIN");
+        boolean isEvcCoordinator = principal.hasRole("ROLE_EVC_COORDINATOR");
+        boolean isRegionalOfficer = principal.hasRole("ROLE_REGIONAL_OFFICER");
+        boolean hasEvcAppointment = authService.hasStatutoryCommitteeAppointment(principal.getId(), "EVC");
+
+        if (!isAdmin && !isEvcCoordinator && !isRegionalOfficer && !hasEvcAppointment) {
+            throw new AccessDeniedException("User " + principal.getUsername() + " does not hold authority or statutory EVC appointment to submit inspection reports");
+        }
+
+        User submitter = userRepository.findById(principal.getId()).orElse(null);
+
+        inspection.setStatus(InspectionStatus.COMPLETED);
+        inspection.setReportFindings(request.reportFindings());
+        inspection.setReportRecommendation(request.recommendation());
+        inspection.setInfrastructureVerified(request.infrastructureVerified());
+        inspection.setFacultyVerified(request.facultyVerified());
+        inspection.setConductedAt(Instant.now());
+        inspection.setSubmittedByUser(submitter);
+        if (request.remarks() != null && !request.remarks().isBlank()) {
+            inspection.setSpecialInstructions("Report Notes: " + request.remarks());
+        }
+        EvcInspection saved = inspectionRepository.save(inspection);
+
+        // Advance application state to EVC_CONDUCTED if attached and currently in EVC_SCHEDULED
+        if (saved.getApplication() != null && saved.getApplication().getCurrentState() == ApplicationState.EVC_SCHEDULED) {
+            workflowEngineService.transitionState(
+                    saved.getApplication().getId(),
+                    new TransitionRequest(
+                            ApplicationState.EVC_CONDUCTED,
+                            "EVC inspection report submitted with recommendation: " + request.recommendation(),
+                            "Findings: " + (request.reportFindings().length() > 200 ? request.reportFindings().substring(0, 200) + "..." : request.reportFindings())
+                    ),
+                    principal
+            );
+        }
+
+        auditService.recordEvent(
+                "EVC_REPORT_SUBMITTED",
+                principal.getUsername(),
+                saved.getInstitution().getId(),
+                "EVC_INSPECTION",
+                inspectionId.toString(),
+                "REPORT_SUBMITTED",
+                null,
+                "EVC inspection report submitted with recommendation: " + request.recommendation()
+        );
+
+        // Dispatch alert to institution
+        alertService.createAlert(
+                "ALERT_EVC_REPORT_SUBMITTED",
+                "EVC Inspection Report Submitted",
+                "Expert Visit Committee has submitted the inspection report for " + saved.getInstitution().getName() + ". Recommendation: " + request.recommendation(),
+                AlertCategory.WORKFLOW,
+                AlertSeverity.INFO,
+                AlertPriority.HIGH,
+                "EVC_INSPECTION",
+                inspectionId,
+                saved.getInstitution().getId(),
+                null,
+                "ROLE_INSTITUTION_OFFICER",
+                null
+        );
+
+        return EvcInspectionDto.fromEntity(saved, loadCommitteeDto(saved));
     }
 
     private List<EvcInspectionDto> filterAndMapInspections(List<EvcInspection> inspections, UserPrincipal principal) {

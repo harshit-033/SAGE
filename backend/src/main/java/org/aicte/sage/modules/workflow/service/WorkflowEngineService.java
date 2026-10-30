@@ -13,6 +13,10 @@ import org.aicte.sage.modules.workflow.dto.TransitionRequest;
 import org.aicte.sage.modules.workflow.dto.WorkflowTransitionDto;
 import org.aicte.sage.modules.workflow.model.WorkflowTransition;
 import org.aicte.sage.modules.workflow.repository.WorkflowTransitionRepository;
+import org.aicte.sage.modules.notifications.entity.AlertCategory;
+import org.aicte.sage.modules.notifications.entity.AlertPriority;
+import org.aicte.sage.modules.notifications.entity.AlertSeverity;
+import org.aicte.sage.modules.notifications.service.AlertService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
@@ -33,19 +37,22 @@ public class WorkflowEngineService {
     private final UserRepository userRepository;
     private final AuthoritativeAuthorizationService authService;
     private final AuditService auditService;
+    private final AlertService alertService;
 
     public WorkflowEngineService(
             ApplicationRepository applicationRepository,
             WorkflowTransitionRepository transitionRepository,
             UserRepository userRepository,
             AuthoritativeAuthorizationService authService,
-            AuditService auditService
+            AuditService auditService,
+            AlertService alertService
     ) {
         this.applicationRepository = applicationRepository;
         this.transitionRepository = transitionRepository;
         this.userRepository = userRepository;
         this.authService = authService;
         this.auditService = auditService;
+        this.alertService = alertService;
     }
 
     /**
@@ -110,10 +117,111 @@ public class WorkflowEngineService {
                 "State transition from " + fromState + " to " + toState + " executed by " + principal.getUsername() + ". Reason: " + transition.getReason()
         );
 
+        // 6. Workflow Lifecycle Notifications
+        try {
+            emitWorkflowAlert(application, fromState, toState);
+        } catch (Exception e) {
+            log.warn("Failed to dispatch workflow alert for application {}: {}", application.getId(), e.getMessage());
+        }
+
         log.info("Application {} transitioned from {} to {} by {}",
                 application.getApplicationNumber(), fromState, toState, principal.getUsername());
 
         return WorkflowTransitionDto.fromEntity(savedTransition);
+    }
+
+    private void emitWorkflowAlert(Application app, ApplicationState from, ApplicationState to) {
+        UUID instId = app.getInstitution().getId();
+        String instName = app.getInstitution().getName();
+        String appNum = app.getApplicationNumber();
+
+        switch (to) {
+            case SUBMITTED -> alertService.createAlert(
+                    "ALERT_APP_SUBMITTED_" + app.getId(),
+                    "New Application Submitted: " + appNum,
+                    "Application " + appNum + " for " + instName + " (" + app.getCategory() + ") was submitted and is pending scrutiny review.",
+                    AlertCategory.WORKFLOW,
+                    AlertSeverity.INFO,
+                    AlertPriority.MEDIUM,
+                    "APPLICATION",
+                    app.getId(),
+                    instId,
+                    null,
+                    "ROLE_REGIONAL_OFFICER",
+                    null
+            );
+            case RESUBMITTED -> alertService.createAlert(
+                    "ALERT_APP_RESUBMITTED_" + app.getId(),
+                    "Application Resubmitted After Rectification: " + appNum,
+                    "Application " + appNum + " for " + instName + " has been resubmitted after deficiency rectification.",
+                    AlertCategory.WORKFLOW,
+                    AlertSeverity.INFO,
+                    AlertPriority.MEDIUM,
+                    "APPLICATION",
+                    app.getId(),
+                    instId,
+                    null,
+                    "ROLE_REGIONAL_OFFICER",
+                    null
+            );
+            case DEFICIENT -> alertService.createAlert(
+                    "ALERT_APP_DEFICIENT_" + app.getId(),
+                    "Deficiencies Flagged: " + appNum,
+                    "Statutory scrutiny or evaluation identified deficiencies for application " + appNum + ". Institutional rectification required.",
+                    AlertCategory.WORKFLOW,
+                    AlertSeverity.WARNING,
+                    AlertPriority.HIGH,
+                    "APPLICATION",
+                    app.getId(),
+                    instId,
+                    null,
+                    "ROLE_INSTITUTION_OFFICER",
+                    null
+            );
+            case SCRUTINY_PASSED -> alertService.createAlert(
+                    "ALERT_SCRUTINY_PASSED_" + app.getId(),
+                    "Scrutiny Cleared: " + appNum,
+                    "Application " + appNum + " for " + instName + " successfully cleared statutory document scrutiny.",
+                    AlertCategory.WORKFLOW,
+                    AlertSeverity.INFO,
+                    AlertPriority.MEDIUM,
+                    "APPLICATION",
+                    app.getId(),
+                    instId,
+                    null,
+                    "ROLE_REGIONAL_OFFICER",
+                    null
+            );
+            case APPROVED -> alertService.createAlert(
+                    "ALERT_APP_APPROVED_" + app.getId(),
+                    "AICTE Approval Granted: " + appNum,
+                    "Congratulations! Application " + appNum + " for " + instName + " has been officially APPROVED by AICTE.",
+                    AlertCategory.WORKFLOW,
+                    AlertSeverity.INFO,
+                    AlertPriority.URGENT,
+                    "APPLICATION",
+                    app.getId(),
+                    instId,
+                    null,
+                    "ROLE_INSTITUTION_OFFICER",
+                    null
+            );
+            case REJECTED -> alertService.createAlert(
+                    "ALERT_APP_REJECTED_" + app.getId(),
+                    "Approval Decision Notice: " + appNum,
+                    "Statutory rejection order issued for application " + appNum + " (" + instName + ").",
+                    AlertCategory.WORKFLOW,
+                    AlertSeverity.CRITICAL,
+                    AlertPriority.URGENT,
+                    "APPLICATION",
+                    app.getId(),
+                    instId,
+                    null,
+                    "ROLE_INSTITUTION_OFFICER",
+                    null
+            );
+            default -> {}
+        }
     }
 
     private void validateTransitionAuthority(

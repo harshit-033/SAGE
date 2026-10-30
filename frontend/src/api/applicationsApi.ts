@@ -126,7 +126,19 @@ export interface ScrutinyEvaluationDto {
   summary: string
   evaluatedByName: string
   evaluatedAt: string
+  score?: number
+  recommendation?: string
+  remarks?: string
+  criteriaBreakdownJson?: string
   findings: ScrutinyFindingDto[]
+}
+
+export interface SubmitEvaluatorAssessmentRequest {
+  score: number
+  recommendation: string
+  remarks: string
+  summary?: string
+  criteriaBreakdownJson?: string
 }
 
 export interface WorkflowTransitionDto {
@@ -281,6 +293,28 @@ export const applicationsApi = {
   ): Promise<ScrutinyFindingDto> => {
     const res = await apiClient<ApiResponseWrapper<ScrutinyFindingDto>>(
       `/api/v1/applications/${applicationId}/scrutiny/findings/${findingId}/resolve`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    )
+    return res.data
+  },
+
+  getEvaluations: async (applicationId: string): Promise<ScrutinyEvaluationDto[]> => {
+    const res = await apiClient<ApiResponseWrapper<ScrutinyEvaluationDto[]>>(
+      `/api/v1/applications/${applicationId}/scrutiny/evaluations`,
+      { method: 'GET' }
+    )
+    return res.data
+  },
+
+  assessApplication: async (
+    applicationId: string,
+    data: SubmitEvaluatorAssessmentRequest
+  ): Promise<ScrutinyEvaluationDto> => {
+    const res = await apiClient<ApiResponseWrapper<ScrutinyEvaluationDto>>(
+      `/api/v1/applications/${applicationId}/scrutiny/assess`,
       {
         method: 'POST',
         body: JSON.stringify(data),
