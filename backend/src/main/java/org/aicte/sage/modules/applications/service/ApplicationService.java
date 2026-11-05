@@ -12,6 +12,7 @@ import org.aicte.sage.modules.applications.dto.CourseDetailsDto;
 import org.aicte.sage.modules.applications.dto.CreateApplicationRequest;
 import org.aicte.sage.modules.applications.dto.SaveBranchDetailsRequest;
 import org.aicte.sage.modules.applications.dto.SaveCourseDetailsRequest;
+import org.aicte.sage.modules.applications.dto.SubmissionReadinessDto;
 import org.aicte.sage.modules.applications.model.Application;
 import org.aicte.sage.modules.applications.model.ApplicationBranchDetails;
 import org.aicte.sage.modules.applications.model.ApplicationCategory;
@@ -62,7 +63,11 @@ public class ApplicationService {
     private final AuthoritativeAuthorizationService authService;
     private final AuditService auditService;
     private final JurisdictionAssignmentRepository jurisdictionRepository;
+    private final SubmissionReadinessService submissionReadinessService;
     private final SecureRandom random = new SecureRandom();
+
+    @org.springframework.beans.factory.annotation.Value("${sage.workflow.enforce-document-completeness-on-submit:true}")
+    private boolean enforceDocumentCompleteness;
 
     public ApplicationService(
             ApplicationRepository applicationRepository,
@@ -74,7 +79,8 @@ public class ApplicationService {
             ApplicationBranchDetailsRepository branchDetailsRepository,
             AuthoritativeAuthorizationService authService,
             AuditService auditService,
-            JurisdictionAssignmentRepository jurisdictionRepository
+            JurisdictionAssignmentRepository jurisdictionRepository,
+            SubmissionReadinessService submissionReadinessService
     ) {
         this.applicationRepository = applicationRepository;
         this.institutionRepository = institutionRepository;
@@ -86,6 +92,7 @@ public class ApplicationService {
         this.authService = authService;
         this.auditService = auditService;
         this.jurisdictionRepository = jurisdictionRepository;
+        this.submissionReadinessService = submissionReadinessService;
     }
 
     public ApplicationDto createApplication(CreateApplicationRequest req, UserPrincipal principal) {
@@ -334,11 +341,27 @@ public class ApplicationService {
     }
 
     public WorkflowTransitionDto submitApplication(UUID id, UserPrincipal principal) {
+        Application application = applicationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Application with ID '" + id + "' not found"));
+
+        authService.checkAccessToInstitution(principal, application.getInstitution().getId(), "APPLICATION_SUBMIT");
+
+        if (enforceDocumentCompleteness) {
+            submissionReadinessService.validateForSubmission(application);
+        }
+
         return workflowEngineService.transitionState(
                 id,
                 new TransitionRequest(ApplicationState.SUBMITTED, "Initial Application Submission", "Completed document declarations"),
                 principal
         );
+    }
+
+    public SubmissionReadinessDto getSubmissionReadiness(UUID id, UserPrincipal principal) {
+        Application application = applicationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Application with ID '" + id + "' not found"));
+        authService.checkAccessToInstitution(principal, application.getInstitution().getId(), "APPLICATION_READ");
+        return submissionReadinessService.evaluateSubmissionReadiness(application);
     }
 
     public WorkflowTransitionDto withdrawApplication(UUID id, String reason, UserPrincipal principal) {

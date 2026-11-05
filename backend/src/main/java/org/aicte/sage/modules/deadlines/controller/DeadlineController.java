@@ -35,7 +35,7 @@ public class DeadlineController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('DEADLINE_READ') or hasRole('ROLE_AICTE_ADMIN')")
+    @PreAuthorize("hasAuthority('DEADLINE_READ') or hasRole('ROLE_AICTE_ADMIN') or hasRole('ROLE_COMPLIANCE_OFFICER') or hasRole('ROLE_AUDITOR')")
     public ResponseEntity<ApiResponse<PageResponse<DeadlineDto>>> getDeadlines(
             @RequestParam(required = false) UUID institutionId,
             @RequestParam(required = false) DeadlineStatus status,
@@ -52,21 +52,21 @@ public class DeadlineController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('DEADLINE_READ') or hasRole('ROLE_AICTE_ADMIN')")
+    @PreAuthorize("hasAuthority('DEADLINE_READ') or hasRole('ROLE_AICTE_ADMIN') or hasRole('ROLE_COMPLIANCE_OFFICER') or hasRole('ROLE_AUDITOR')")
     public ResponseEntity<ApiResponse<DeadlineDto>> getDeadlineById(@PathVariable UUID id) {
         DeadlineDto result = deadlineService.getDeadlineById(id, getCurrentPrincipal());
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
     @GetMapping("/{id}/history")
-    @PreAuthorize("hasAuthority('DEADLINE_READ') or hasRole('ROLE_AICTE_ADMIN')")
+    @PreAuthorize("hasAuthority('DEADLINE_READ') or hasRole('ROLE_AICTE_ADMIN') or hasRole('ROLE_COMPLIANCE_OFFICER') or hasRole('ROLE_AUDITOR')")
     public ResponseEntity<ApiResponse<List<DeadlineHistoryDto>>> getDeadlineHistory(@PathVariable UUID id) {
         List<DeadlineHistoryDto> result = deadlineService.getDeadlineHistory(id, getCurrentPrincipal());
         return ResponseEntity.ok(ApiResponse.ok("Deadline history retrieved", result));
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('DEADLINE_MANAGE') or hasRole('ROLE_AICTE_ADMIN')")
+    @PreAuthorize("hasAuthority('DEADLINE_MANAGE') or hasRole('ROLE_AICTE_ADMIN') or hasRole('ROLE_COMPLIANCE_OFFICER')")
     public ResponseEntity<ApiResponse<DeadlineDto>> createDeadline(@Valid @RequestBody CreateDeadlineRequest req) {
         DeadlineDto result = deadlineService.createDeadline(req, getCurrentPrincipal());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Deadline created successfully", result));

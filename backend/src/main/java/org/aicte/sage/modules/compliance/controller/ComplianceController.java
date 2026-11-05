@@ -35,7 +35,7 @@ public class ComplianceController {
     }
 
     @GetMapping("/findings")
-    @PreAuthorize("hasAuthority('COMPLIANCE_READ') or hasRole('ROLE_AICTE_ADMIN')")
+    @PreAuthorize("hasAuthority('COMPLIANCE_READ') or hasRole('ROLE_AICTE_ADMIN') or hasRole('ROLE_COMPLIANCE_OFFICER') or hasRole('ROLE_AUDITOR')")
     public ResponseEntity<ApiResponse<PageResponse<ComplianceFindingDto>>> getFindings(
             @RequestParam(required = false) UUID institutionId,
             @RequestParam(required = false) ComplianceFindingStatus status,
@@ -62,7 +62,7 @@ public class ComplianceController {
     }
 
     @GetMapping("/runs")
-    @PreAuthorize("hasAuthority('COMPLIANCE_READ') or hasRole('ROLE_AICTE_ADMIN')")
+    @PreAuthorize("hasAuthority('COMPLIANCE_READ') or hasRole('ROLE_AICTE_ADMIN') or hasRole('ROLE_COMPLIANCE_OFFICER') or hasRole('ROLE_AUDITOR')")
     public ResponseEntity<ApiResponse<PageResponse<ComplianceCheckRunDto>>> getCheckRuns(
             @RequestParam(required = false) UUID institutionId,
             @RequestParam(defaultValue = "0") int page,

@@ -26,6 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.*;
 
+import org.aicte.sage.modules.applications.service.SubmissionReadinessService;
+import org.springframework.beans.factory.annotation.Value;
+
 @Service
 @Transactional
 public class WorkflowEngineService {
@@ -38,6 +41,10 @@ public class WorkflowEngineService {
     private final AuthoritativeAuthorizationService authService;
     private final AuditService auditService;
     private final AlertService alertService;
+    private final SubmissionReadinessService submissionReadinessService;
+
+    @Value("${sage.workflow.enforce-document-completeness-on-submit:true}")
+    private boolean enforceDocumentCompleteness;
 
     public WorkflowEngineService(
             ApplicationRepository applicationRepository,
@@ -45,7 +52,8 @@ public class WorkflowEngineService {
             UserRepository userRepository,
             AuthoritativeAuthorizationService authService,
             AuditService auditService,
-            AlertService alertService
+            AlertService alertService,
+            SubmissionReadinessService submissionReadinessService
     ) {
         this.applicationRepository = applicationRepository;
         this.transitionRepository = transitionRepository;
@@ -53,6 +61,7 @@ public class WorkflowEngineService {
         this.authService = authService;
         this.auditService = auditService;
         this.alertService = alertService;
+        this.submissionReadinessService = submissionReadinessService;
     }
 
     /**
@@ -239,9 +248,15 @@ public class WorkflowEngineService {
         // 1. Institution Officer actions (Self-Service)
         if (isInstOfficer && !isAdmin && !isRegionalOfficer) {
             if (from == ApplicationState.DRAFT && to == ApplicationState.SUBMITTED) {
+                if (enforceDocumentCompleteness) {
+                    submissionReadinessService.validateForSubmission(application);
+                }
                 return; // Valid submission
             }
             if (from == ApplicationState.DEFICIENT && to == ApplicationState.RESUBMITTED) {
+                if (enforceDocumentCompleteness) {
+                    submissionReadinessService.validateForSubmission(application);
+                }
                 return; // Valid resubmission after correction
             }
             if ((from == ApplicationState.DRAFT || from == ApplicationState.SUBMITTED || from == ApplicationState.DEFICIENT) && to == ApplicationState.WITHDRAWN) {

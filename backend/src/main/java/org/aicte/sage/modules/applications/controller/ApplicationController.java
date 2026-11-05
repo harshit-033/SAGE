@@ -19,6 +19,9 @@ import org.aicte.sage.modules.applications.service.ApplicationService;
 import org.aicte.sage.modules.workflow.dto.TransitionRequest;
 import org.aicte.sage.modules.workflow.dto.WorkflowTransitionDto;
 import org.aicte.sage.modules.workflow.service.WorkflowEngineService;
+import org.aicte.sage.modules.applications.dto.StatutoryRequirementDefinitionDto;
+import org.aicte.sage.modules.applications.dto.SubmissionReadinessDto;
+import org.aicte.sage.modules.applications.service.SubmissionReadinessService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,13 +37,16 @@ public class ApplicationController {
 
     private final ApplicationService applicationService;
     private final WorkflowEngineService workflowEngineService;
+    private final SubmissionReadinessService submissionReadinessService;
 
     public ApplicationController(
             ApplicationService applicationService,
-            WorkflowEngineService workflowEngineService
+            WorkflowEngineService workflowEngineService,
+            SubmissionReadinessService submissionReadinessService
     ) {
         this.applicationService = applicationService;
         this.workflowEngineService = workflowEngineService;
+        this.submissionReadinessService = submissionReadinessService;
     }
 
     private UserPrincipal getCurrentPrincipal() {
@@ -164,5 +170,22 @@ public class ApplicationController {
     ) {
         BranchDetailsDto dto = applicationService.getBranchDetails(id, getCurrentPrincipal());
         return ResponseEntity.ok(ApiResponse.ok(dto));
+    }
+
+    @GetMapping("/{id}/submission-readiness")
+    @PreAuthorize("hasAuthority('APPLICATION_READ') or hasRole('ROLE_INSTITUTION_OFFICER')")
+    @Operation(summary = "Get application submission readiness", description = "Evaluates statutory document completeness and AI forgery risk before submission")
+    public ResponseEntity<ApiResponse<SubmissionReadinessDto>> getSubmissionReadiness(@PathVariable UUID id) {
+        SubmissionReadinessDto readiness = applicationService.getSubmissionReadiness(id, getCurrentPrincipal());
+        return ResponseEntity.ok(ApiResponse.ok(readiness));
+    }
+
+    @GetMapping("/category-requirements")
+    @Operation(summary = "Get mandatory requirements for an application category", description = "Returns required document checklist for a specific approval category per APH norms")
+    public ResponseEntity<ApiResponse<List<StatutoryRequirementDefinitionDto>>> getCategoryRequirements(
+            @RequestParam(defaultValue = "NEW_COURSE_INTRODUCTION") ApplicationCategory category
+    ) {
+        List<StatutoryRequirementDefinitionDto> requirements = submissionReadinessService.getCategoryRequirements(category);
+        return ResponseEntity.ok(ApiResponse.ok(requirements));
     }
 }

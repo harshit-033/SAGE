@@ -190,8 +190,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(details);
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ProblemDetails> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public ResponseEntity<ProblemDetails> handleIllegalArgument(RuntimeException ex, HttpServletRequest request) {
         String correlationId = CorrelationIdFilter.getCurrentCorrelationId();
         ProblemDetails details = new ProblemDetails(
                 URI.create("https://api.aicte.gov.in/errors/bad-request"),

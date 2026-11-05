@@ -38,7 +38,7 @@ describe('Document Compliance and Application Workflows Unit Tests', () => {
     unmount2()
 
     const { unmount: unmount3 } = render(<StatusBadge status="APPROVED" />)
-    expect(screen.getByText('Active')).toBeInTheDocument()
+    expect(screen.getByText('Approved')).toBeInTheDocument()
     unmount3()
   })
 

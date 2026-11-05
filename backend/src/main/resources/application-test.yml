@@ -23,6 +23,8 @@ sage:
       service-token: test_internal_service_secret_token_12345
   automation:
     service-url: http://localhost:8000
+  workflow:
+    enforce-document-completeness-on-submit: false
 
 logging:
   level:

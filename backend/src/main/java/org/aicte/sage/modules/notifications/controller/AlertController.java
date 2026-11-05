@@ -36,7 +36,7 @@ public class AlertController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ALERT_READ') or hasRole('ROLE_AICTE_ADMIN')")
+    @PreAuthorize("hasAuthority('ALERT_READ') or hasRole('ROLE_AICTE_ADMIN') or hasRole('ROLE_COMPLIANCE_OFFICER') or hasRole('ROLE_REGIONAL_OFFICER') or hasRole('ROLE_AUDITOR')")
     public ResponseEntity<ApiResponse<PageResponse<AlertDto>>> getAlerts(
             @RequestParam(required = false) UUID institutionId,
             @RequestParam(required = false) AlertStatus status,
@@ -54,14 +54,14 @@ public class AlertController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('ALERT_READ') or hasRole('ROLE_AICTE_ADMIN')")
+    @PreAuthorize("hasAuthority('ALERT_READ') or hasRole('ROLE_AICTE_ADMIN') or hasRole('ROLE_COMPLIANCE_OFFICER') or hasRole('ROLE_REGIONAL_OFFICER') or hasRole('ROLE_AUDITOR')")
     public ResponseEntity<ApiResponse<AlertDto>> getAlertById(@PathVariable UUID id) {
         AlertDto result = alertService.getAlertById(id, getCurrentPrincipal());
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
     @PostMapping("/{id}/acknowledge")
-    @PreAuthorize("hasAuthority('ALERT_ACKNOWLEDGE') or hasRole('ROLE_AICTE_ADMIN')")
+    @PreAuthorize("hasAuthority('ALERT_ACKNOWLEDGE') or hasRole('ROLE_AICTE_ADMIN') or hasRole('ROLE_COMPLIANCE_OFFICER') or hasRole('ROLE_REGIONAL_OFFICER')")
     public ResponseEntity<ApiResponse<AlertDto>> acknowledgeAlert(
             @PathVariable UUID id,
             @Valid @RequestBody AcknowledgeAlertRequest req) {
@@ -70,7 +70,7 @@ public class AlertController {
     }
 
     @PostMapping("/{id}/resolve")
-    @PreAuthorize("hasAuthority('ALERT_ACKNOWLEDGE') or hasRole('ROLE_AICTE_ADMIN')")
+    @PreAuthorize("hasAuthority('ALERT_ACKNOWLEDGE') or hasRole('ROLE_AICTE_ADMIN') or hasRole('ROLE_COMPLIANCE_OFFICER') or hasRole('ROLE_REGIONAL_OFFICER')")
     public ResponseEntity<ApiResponse<AlertDto>> resolveAlert(
             @PathVariable UUID id,
             @Valid @RequestBody ResolveAlertRequest req) {

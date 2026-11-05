@@ -80,11 +80,53 @@ export interface ExtractedFieldDto {
   rawTextSnippet?: string
 }
 
+export interface StatutoryRequirementDefinitionDto {
+  documentType: string
+  displayName: string
+  description: string
+  aphClause: string
+  isMandatory: boolean
+}
+
+export interface RequiredDocumentItemDto {
+  documentType: string
+  displayName: string
+  description: string
+  aphClause: string
+  isMandatory: boolean
+  isUploaded: boolean
+  documentId?: string
+  documentName?: string
+  originalFilename?: string
+  forgeryRisk: 'LOW' | 'MEDIUM' | 'HIGH' | string
+  isHighRisk: boolean
+  complianceStatus: string
+  uploadedAt?: string
+}
+
+export interface SubmissionReadinessDto {
+  applicationId: string
+  applicationNumber: string
+  category: string
+  categoryDisplayName: string
+  currentState: string
+  canSubmit: boolean
+  totalRequired: number
+  totalUploaded: number
+  missingDocumentTypes: string[]
+  missingDocumentNames: string[]
+  highRiskDocumentNames: string[]
+  checklist: RequiredDocumentItemDto[]
+  blockingReason?: string
+}
+
 export interface DocumentDto {
   id: string
-  applicationId: string
+  applicationId?: string
   institutionId: string
   documentType: string
+  documentName?: string
+  documentCategory?: 'INFRASTRUCTURE' | 'FACULTY' | 'FINANCIAL' | 'LEGAL' | 'ACADEMIC' | 'GENERAL' | string
   originalFilename: string
   contentType: string
   fileSizeBytes: number
@@ -93,8 +135,14 @@ export interface DocumentDto {
   ocrEngine?: string
   overallConfidence?: number
   uncertain: boolean
+  forgeryRisk?: 'LOW' | 'MEDIUM' | 'HIGH' | string
+  verificationStatus?: 'PENDING_REVIEW' | 'UNDER_REVIEW' | 'VERIFIED' | 'VERIFIED_WITH_WARNINGS' | 'REJECTED' | 'REQUIRES_CLARIFICATION' | 'REPROCESSING' | string
+  complianceStatus?: 'COMPLIANT' | 'EXPIRING_SOON' | 'EXPIRED' | 'DEFICIENT' | 'ACTION_REQUIRED' | 'NOT_APPLICABLE' | string
+  versionNumber?: number
+  officerComments?: string
+  clarificationText?: string
   aiAnalysisReport?: string
-  extractedFields: ExtractedFieldDto[]
+  extractedFields?: ExtractedFieldDto[]
   createdAt: string
   updatedAt: string
 }
@@ -386,6 +434,22 @@ export const applicationsApi = {
   getBranchDetails: async (applicationId: string): Promise<BranchDetailsDto> => {
     const res = await apiClient<ApiResponseWrapper<BranchDetailsDto>>(
       `/api/v1/applications/${applicationId}/branch-details`,
+      { method: 'GET' }
+    )
+    return res.data
+  },
+
+  getSubmissionReadiness: async (applicationId: string): Promise<SubmissionReadinessDto> => {
+    const res = await apiClient<ApiResponseWrapper<SubmissionReadinessDto>>(
+      `/api/v1/applications/${applicationId}/submission-readiness`,
+      { method: 'GET' }
+    )
+    return res.data
+  },
+
+  getCategoryRequirements: async (category: string): Promise<StatutoryRequirementDefinitionDto[]> => {
+    const res = await apiClient<ApiResponseWrapper<StatutoryRequirementDefinitionDto[]>>(
+      `/api/v1/applications/category-requirements?category=${encodeURIComponent(category)}`,
       { method: 'GET' }
     )
     return res.data

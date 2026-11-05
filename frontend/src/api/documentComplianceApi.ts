@@ -46,6 +46,12 @@ export interface DocumentAiValidationResult {
   recommendations: string[]
   fullReport: string
   evaluatedAt?: string
+  aiUsageRisk?: 'NONE_DETECTED' | 'SUSPECTED_AI_GENERATED' | 'HIGH_RISK_SYNTHETIC'
+  aiUsageObservations?: string[]
+  fontComplianceStatus?: 'COMPLIANT' | 'NON_COMPLIANT_FONTS' | 'IRREGULAR_TYPOGRAPHY'
+  fontObservations?: string[]
+  discrepancyCount?: number
+  discrepancyObservations?: string[]
 }
 
 export interface DocumentCorrectiveActionDto {

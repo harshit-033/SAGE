@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { StatusBadge } from '../components/common/StatusBadge'
 import { Pagination } from '../components/common/Pagination'
 import { Modal } from '../components/common/Modal'
-import { FileText, Plus, Filter, Eye, AlertCircle, FileCheck2 } from 'lucide-react'
+import { FileText, Plus, Filter, Eye, AlertCircle, FileCheck2, ShieldCheck } from 'lucide-react'
 
 interface ApplicationListItem {
   id: string
@@ -48,7 +48,7 @@ export const Applications: React.FC = () => {
   const [formData, setFormData] = useState({
     institutionId: '',
     academicYear: '2024-25',
-    category: 'EXTENSION_OF_APPROVAL',
+    category: 'NEW_COURSE_INTRODUCTION',
     courseName: '',
     programmeLevel: 'UNDERGRADUATE',
     degreeType: 'B.Tech',
@@ -77,6 +77,13 @@ export const Applications: React.FC = () => {
     queryKey: ['institutions-dropdown'],
     queryFn: () => institutionsApi.listInstitutionsPaginated({ size: 100 }),
     enabled: isCreateModalOpen && (isAdmin || hasRole('ROLE_REGIONAL_OFFICER')),
+  })
+
+  // Fetch statutory requirements checklist for selected category
+  const { data: categoryRequirements = [] } = useQuery({
+    queryKey: ['category-requirements', formData.category],
+    queryFn: () => applicationsApi.getCategoryRequirements(formData.category),
+    enabled: isCreateModalOpen,
   })
 
   // Create Application Mutation
@@ -131,7 +138,7 @@ export const Applications: React.FC = () => {
     setFormData({
       institutionId: defaultInstId,
       academicYear: '2024-25',
-      category: 'EXTENSION_OF_APPROVAL',
+      category: 'NEW_COURSE_INTRODUCTION',
       courseName: '',
       programmeLevel: 'UNDERGRADUATE',
       degreeType: 'B.Tech',
@@ -478,6 +485,7 @@ export const Applications: React.FC = () => {
               Application Category (APH 2024-27)
             </label>
             <select
+              id="select-application-category"
               className="form-control"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -494,6 +502,110 @@ export const Applications: React.FC = () => {
             <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
               Workflow definitions, mandatory document checklists, and committee approvals vary automatically by category.
             </small>
+          </div>
+
+          {/* Statutory Mandatory Document Requirements Preview */}
+          <div
+            id="modal-statutory-checklist-preview"
+            style={{
+              padding: '0.9rem',
+              backgroundColor: '#f8fafc',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-medium)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.6rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <ShieldCheck size={16} color="var(--gov-blue)" />
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--gov-navy)' }}>
+                  Statutory Mandatory Documents Required for Approval
+                </span>
+              </div>
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  padding: '0.15rem 0.5rem',
+                  borderRadius: '10px',
+                  backgroundColor: 'var(--gov-blue-light)',
+                  color: 'var(--gov-blue)',
+                }}
+              >
+                {categoryRequirements.length} Mandatory Documents
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+              Under AICTE Approval Process Handbook (APH 2024-27) norms, the institution must upload and verify each statutory document listed below before this application can be submitted.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.2rem' }}>
+              {categoryRequirements.map((req, idx) => (
+                <div
+                  key={req.documentType || idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                    gap: '0.5rem',
+                    padding: '0.45rem 0.6rem',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.45rem' }}>
+                    <span style={{ color: 'var(--gov-blue)', fontWeight: 800, fontSize: '0.75rem', marginTop: '1px' }}>
+                      {idx + 1}.
+                    </span>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--gov-navy)' }}>
+                        {req.displayName}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {req.description}
+                      </div>
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      backgroundColor: '#f1f5f9',
+                      padding: '0.15rem 0.4rem',
+                      borderRadius: '3px',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {req.aphClause}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div
+              style={{
+                fontSize: '0.72rem',
+                color: '#b45309',
+                backgroundColor: '#fef3c7',
+                padding: '0.4rem 0.6rem',
+                borderRadius: '4px',
+                border: '1px solid #fde68a',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <AlertCircle size={14} style={{ flexShrink: 0 }} />
+              <span>
+                <strong>Submission Gate Rule:</strong> Application submission will remain locked until all {categoryRequirements.length} documents are uploaded and verified free of tampering or high forgery risk.
+              </span>
+            </div>
           </div>
 
           {/* Dynamic Section: New Course Introduction */}

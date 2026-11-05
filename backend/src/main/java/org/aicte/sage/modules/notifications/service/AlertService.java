@@ -312,7 +312,7 @@ public class AlertService {
             Pageable pageable,
             UserPrincipal principal) {
 
-        if (principal.hasRole("ROLE_AICTE_ADMIN")) {
+        if (principal.hasRole("ROLE_AICTE_ADMIN") || principal.hasRole("ROLE_COMPLIANCE_OFFICER") || principal.hasRole("ROLE_AUDITOR")) {
             if (institutionId != null) {
                 if (status != null) {
                     return alertRepository.findByInstitutionIdAndStatus(institutionId, status, pageable).map(AlertDto::fromEntity);

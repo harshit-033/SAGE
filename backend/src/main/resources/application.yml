@@ -38,6 +38,8 @@ sage:
       service-token: ${INTERNAL_SERVICE_TOKEN:}
   automation:
     service-url: ${AUTOMATION_SERVICE_URL:http://localhost:8000}
+  workflow:
+    enforce-document-completeness-on-submit: ${ENFORCE_DOC_COMPLETENESS:true}
   ai:
     gemini:
       api-key: ${GEMINI_API_KEY:}

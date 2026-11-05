@@ -8,6 +8,7 @@ import {
   type CourseDetailsDto,
   type BranchDetailsDto,
   type SubmitEvaluatorAssessmentRequest,
+  type SubmissionReadinessDto,
 } from '../api/applicationsApi'
 import { useAuth } from '../context/AuthContext'
 import { useMessage } from '../context/MessageContext'
@@ -15,7 +16,8 @@ import { StatusBadge } from '../components/common/StatusBadge'
 import { Modal } from '../components/common/Modal'
 import { SageAiFindingsViewer } from '../components/common/SageAiFindingsViewer'
 import { SageAiPreUploadModal } from '../components/common/SageAiPreUploadModal'
-import type { DocumentAiValidationResult } from '../api/documentComplianceApi'
+import { DocumentVerificationInspectorModal } from '../components/common/DocumentVerificationInspectorModal'
+import { documentComplianceApi, type DocumentAiValidationResult } from '../api/documentComplianceApi'
 import {
   FileText,
   Upload,
@@ -36,6 +38,10 @@ import {
   Award,
   CheckCircle,
   Sparkles,
+  Lock,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
 } from 'lucide-react'
 
 export const ApplicationDetails: React.FC = () => {
@@ -43,7 +49,7 @@ export const ApplicationDetails: React.FC = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { hasRole, isAdmin } = useAuth()
-  const { showSuccess, handleApiError, showConfirmation } = useMessage()
+  const { showSuccess, handleApiError, showConfirmation, showWarning } = useMessage()
 
   const [activeTab, setActiveTab] = useState<'specification' | 'documents' | 'scrutiny' | 'workflow'>('specification')
 
@@ -54,6 +60,7 @@ export const ApplicationDetails: React.FC = () => {
 
   // SAGE AI Analysis State
   const [selectedAiDoc, setSelectedAiDoc] = useState<DocumentDto | null>(null)
+  const [inspectingDoc, setInspectingDoc] = useState<DocumentDto | null>(null)
   const [isAiValidationModalOpen, setIsAiValidationModalOpen] = useState<boolean>(false)
   const [aiValidationResult, setAiValidationResult] = useState<DocumentAiValidationResult | null>(null)
   const [isAiValidating, setIsAiValidating] = useState<boolean>(false)
@@ -97,6 +104,13 @@ export const ApplicationDetails: React.FC = () => {
     enabled: !!id,
   })
 
+  // Fetch statutory submission readiness & mandatory document checklist
+  const { data: readiness } = useQuery<SubmissionReadinessDto>({
+    queryKey: ['application-readiness', id],
+    queryFn: () => applicationsApi.getSubmissionReadiness(id!),
+    enabled: !!id,
+  })
+
   // Fetch scrutiny findings
   const { data: findings = [] } = useQuery({
     queryKey: ['application-findings', id],
@@ -124,6 +138,7 @@ export const ApplicationDetails: React.FC = () => {
       applicationsApi.uploadDocument(id!, docType, file, preAnalysisReport),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['application-documents', id] })
+      queryClient.invalidateQueries({ queryKey: ['application-readiness', id] })
       setUploadFile(null)
       setUploadError(null)
       setIsAiValidationModalOpen(false)
@@ -191,6 +206,20 @@ export const ApplicationDetails: React.FC = () => {
       handleApiError(err, 'Assessment Notice', 'Failed to commit evaluator assessment')
       const msg = err instanceof Error ? err.message : 'Assessment submission failed'
       setAssessmentError(msg)
+    },
+  })
+
+  const reviewDocMutation = useMutation({
+    mutationFn: ({ docId, status, notes }: { docId: string; status: 'VERIFIED' | 'REJECTED'; notes: string }) =>
+      documentComplianceApi.reviewDocument(docId, { verificationStatus: status, officerComments: notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['application-documents', id] })
+      queryClient.invalidateQueries({ queryKey: ['application-readiness', id] })
+      showSuccess('Verification Recorded', 'Document verification determination has been authoritatively recorded.')
+      setInspectingDoc(null)
+    },
+    onError: (err: unknown) => {
+      handleApiError(err, 'Verification Error', 'Failed to record document determination')
     },
   })
 
@@ -378,23 +407,53 @@ export const ApplicationDetails: React.FC = () => {
           {/* Quick Actions */}
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             {application.currentState === 'DRAFT' && isInstitution && (
-              <button
-                onClick={() => submitAppMutation.mutate()}
-                disabled={submitAppMutation.isPending}
-                className="btn btn-primary"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  backgroundColor: 'var(--gov-orange)',
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                }}
-              >
-                <Send size={15} />
-                <span>Submit Application</span>
-              </button>
+              readiness && !readiness.canSubmit ? (
+                <button
+                  id="btn-submit-application-locked"
+                  onClick={() => {
+                    showWarning(
+                      'Submission Incomplete',
+                      readiness.blockingReason || 'Please complete all mandatory document uploads and resolve risk alerts before submission.'
+                    )
+                  }}
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    backgroundColor: '#f1f5f9',
+                    color: '#64748b',
+                    border: '1px solid #cbd5e1',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    cursor: 'not-allowed',
+                  }}
+                  title={readiness.blockingReason}
+                >
+                  <Lock size={15} color="#94a3b8" />
+                  <span>Submit Application (Locked)</span>
+                </button>
+              ) : (
+                <button
+                  id="btn-submit-application"
+                  onClick={() => submitAppMutation.mutate()}
+                  disabled={submitAppMutation.isPending}
+                  className="btn btn-primary"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    backgroundColor: 'var(--gov-orange)',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    boxShadow: '0 2px 4px rgba(235, 110, 48, 0.3)',
+                  }}
+                >
+                  <Send size={15} />
+                  <span>{submitAppMutation.isPending ? 'Submitting...' : 'Submit Application'}</span>
+                </button>
+              )
             )}
 
             {application.currentState === 'DEFICIENT' && isInstitution && (
@@ -470,6 +529,7 @@ export const ApplicationDetails: React.FC = () => {
 
             {isOfficerOrAdmin && (
               <button
+                id="btn-advance-workflow"
                 onClick={() => {
                   setTransitionError(null)
                   setIsTransitionModalOpen(true)
@@ -1029,9 +1089,330 @@ export const ApplicationDetails: React.FC = () => {
       {/* Tab: Documents & OCR */}
       {activeTab === 'documents' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Statutory Document Compliance & AI Submission Gate */}
+          <div
+            id="statutory-document-compliance-gate"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: 'var(--radius-md)',
+              border: readiness?.canSubmit ? '2px solid #86efac' : '1px solid var(--border-medium)',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            }}
+          >
+            {/* Header Row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <ShieldCheck size={24} color={readiness?.canSubmit ? 'var(--gov-green)' : 'var(--gov-blue)'} />
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                    Statutory Document Compliance &amp; SAGE AI Submission Gate
+                  </h3>
+                </div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
+                  AICTE Approval Process Handbook (APH 2024-27) • Approval Category: <strong>{readiness?.categoryDisplayName || application.category}</strong>
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                {readiness?.canSubmit ? (
+                  <div
+                    id="badge-submission-ready"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      padding: '0.4rem 0.85rem',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: '#dcfce7',
+                      color: '#15803d',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      border: '1px solid #bbf7d0',
+                    }}
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>Ready for Statutory Submission ({readiness.totalUploaded}/{readiness.totalRequired})</span>
+                  </div>
+                ) : (
+                  <div
+                    id="badge-submission-locked"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      padding: '0.4rem 0.85rem',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: '#fef2f2',
+                      color: '#991b1b',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      border: '1px solid #fecaca',
+                    }}
+                  >
+                    <Lock size={16} />
+                    <span>Submission Locked ({readiness?.totalUploaded ?? 0}/{readiness?.totalRequired ?? 0} Uploaded)</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                <span>Mandatory Documents Progress</span>
+                <span>
+                  {readiness?.totalUploaded ?? 0} of {readiness?.totalRequired ?? 0} Statutory Documents ({Math.round(((readiness?.totalUploaded ?? 0) / (readiness?.totalRequired || 1)) * 100)}%)
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${Math.round(((readiness?.totalUploaded ?? 0) / (readiness?.totalRequired || 1)) * 100)}%`,
+                    backgroundColor: readiness?.canSubmit ? 'var(--gov-green)' : 'var(--gov-orange)',
+                    transition: 'width 0.3s ease',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Gate Alert Banner */}
+            {readiness && !readiness.canSubmit && (
+              <div
+                id="alert-submission-incomplete"
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  padding: '0.85rem 1rem',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  color: '#92400e',
+                }}
+              >
+                <AlertCircle size={20} color="#b45309" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ fontSize: '0.82rem', lineHeight: 1.5 }}>
+                  <div style={{ fontWeight: 800, marginBottom: '0.2rem', color: '#78350f' }}>
+                    Statutory Submission Gate Notice:
+                  </div>
+                  <div>{readiness.blockingReason}</div>
+                  <div style={{ marginTop: '0.3rem', fontSize: '0.75rem', color: '#b45309' }}>
+                    Under AICTE regulations, approval applications cannot be submitted until all mandatory statutory certificates are uploaded and cleared of digital tampering or high forgery risks.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {readiness && readiness.canSubmit && (
+              <div
+                id="alert-submission-ready"
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  padding: '0.85rem 1rem',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  color: '#166534',
+                }}
+              >
+                <CheckCircle2 size={20} color="var(--gov-green)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ fontSize: '0.82rem', lineHeight: 1.5 }}>
+                  <div style={{ fontWeight: 800, marginBottom: '0.2rem', color: '#14532d' }}>
+                    All Statutory Requirements Satisfied:
+                  </div>
+                  <div>
+                    All {readiness.totalRequired} mandatory certificates have been successfully uploaded and verified clean of digital forgery or tampering indicators. Application is fully eligible for statutory AICTE submission.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Required Documents Checklist Grid */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--gov-navy)' }}>
+                Mandatory Statutory Checklist for this Approval
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '0.75rem' }}>
+                {readiness?.checklist.map((item, idx) => (
+                  <div
+                    key={item.documentType || idx}
+                    id={`checklist-item-${item.documentType}`}
+                    style={{
+                      padding: '0.85rem 1rem',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: item.isUploaded ? (item.isHighRisk ? '#fef2f2' : '#ffffff') : '#f8fafc',
+                      border: item.isUploaded
+                        ? (item.isHighRisk ? '1px solid #f87171' : '1px solid #bbf7d0')
+                        : '1px solid #fed7aa',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '0.6rem',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          {item.isUploaded ? (
+                            item.isHighRisk ? (
+                              <AlertTriangle size={17} color="#dc2626" style={{ flexShrink: 0 }} />
+                            ) : (
+                              <CheckCircle2 size={17} color="var(--gov-green)" style={{ flexShrink: 0 }} />
+                            )
+                          ) : (
+                            <XCircle size={17} color="#f97316" style={{ flexShrink: 0 }} />
+                          )}
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--gov-navy)' }}>
+                            {item.displayName}
+                          </span>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '0.15rem 0.45rem',
+                            borderRadius: '3px',
+                            backgroundColor: '#f1f5f9',
+                            color: 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {item.aphClause}
+                        </span>
+                      </div>
+
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0 1.55rem', lineHeight: 1.4 }}>
+                        {item.description}
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem', marginTop: '0.2rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        {item.isUploaded ? (
+                          <>
+                            {item.isHighRisk ? (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#b91c1c', backgroundColor: '#fee2e2', padding: '0.2rem 0.5rem', borderRadius: '3px' }}>
+                                ⚠️ High Risk Flagged
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#15803d', backgroundColor: '#dcfce7', padding: '0.2rem 0.5rem', borderRadius: '3px' }}>
+                                ✅ Uploaded &amp; Verified
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                padding: '0.2rem 0.45rem',
+                                borderRadius: '3px',
+                                backgroundColor: item.isHighRisk ? '#fee2e2' : '#ede9fe',
+                                color: item.isHighRisk ? '#991b1b' : '#6d28d9',
+                              }}
+                            >
+                              {item.forgeryRisk} Forgery Risk
+                            </span>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#ea580c', backgroundColor: '#ffedd5', padding: '0.2rem 0.5rem', borderRadius: '3px' }}>
+                            ⏳ Pending Upload
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {item.isUploaded && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const matchingDoc = documents.find(d => d.id === item.documentId || d.documentType === item.documentType)
+                              if (matchingDoc) setInspectingDoc(matchingDoc)
+                            }}
+                            id={`btn-checklist-inspect-${item.documentType}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              padding: '0.2rem 0.55rem',
+                              backgroundColor: '#eff6ff',
+                              color: '#1d4ed8',
+                              border: '1px solid #bfdbfe',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                            }}
+                            title="Inspect actual document along with OCR & AI findings side-by-side"
+                          >
+                            <Eye size={12} />
+                            <span>Inspect Document &amp; AI</span>
+                          </button>
+                        )}
+
+                        {isInstitution && (
+                          <div>
+                            {item.isUploaded ? (
+                              item.isHighRisk && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDocType(item.documentType)
+                                    const el = document.getElementById('upload-document-form')
+                                    if (el) el.scrollIntoView({ behavior: 'smooth' })
+                                  }}
+                                  className="btn btn-outline"
+                                  style={{
+                                    fontSize: '0.72rem',
+                                    padding: '0.2rem 0.55rem',
+                                    borderColor: '#dc2626',
+                                    color: '#dc2626',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  Replace Document
+                                </button>
+                              )
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDocType(item.documentType)
+                                  const el = document.getElementById('upload-document-form')
+                                  if (el) el.scrollIntoView({ behavior: 'smooth' })
+                                }}
+                                className="btn btn-primary"
+                                style={{
+                                  fontSize: '0.72rem',
+                                  padding: '0.25rem 0.65rem',
+                                  backgroundColor: 'var(--gov-blue)',
+                                  color: '#ffffff',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Upload This
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Upload Form (Institution Signatory Only) */}
           {isInstitution && (
             <div
+              id="upload-document-form"
               style={{
                 backgroundColor: 'var(--bg-surface)',
                 padding: '1.25rem',
@@ -1224,6 +1605,30 @@ export const ApplicationDetails: React.FC = () => {
                       >
                         Confidence: {Math.round((doc.overallConfidence ?? 1) * 100)}%
                       </div>
+
+                      {/* Integrated Side-by-Side Dual Pane Inspector */}
+                      <button
+                        onClick={() => setInspectingDoc(doc)}
+                        id={`btn-inspect-document-${doc.documentType}`}
+                        className="btn btn-primary btn-sm"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.3rem 0.75rem',
+                          borderRadius: 'var(--radius-xs)',
+                          backgroundColor: '#1e3a8a',
+                          color: '#ffffff',
+                          border: 'none',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                        title="Open integrated Side-by-Side Document, OCR & SAGE AI Inspector"
+                      >
+                        <Eye size={13} />
+                        <span>Inspect Document &amp; AI</span>
+                      </button>
 
                       {/* SAGE AI Findings Button */}
                       <button
@@ -1850,6 +2255,7 @@ export const ApplicationDetails: React.FC = () => {
               Target State (Subject to Regulatory Authority)
             </label>
             <select
+              id="select-workflow-target-state"
               value={targetState}
               onChange={(e) => setTargetState(e.target.value)}
               className="form-control"
@@ -1873,6 +2279,7 @@ export const ApplicationDetails: React.FC = () => {
               Justification / Meeting Reference
             </label>
             <textarea
+              id="textarea-transition-reason"
               rows={2}
               className="form-control"
               value={transitionReason}
@@ -1886,7 +2293,7 @@ export const ApplicationDetails: React.FC = () => {
             <button type="button" onClick={() => setIsTransitionModalOpen(false)} className="btn btn-outline">
               Cancel
             </button>
-            <button type="submit" disabled={transitionMutation.isPending} className="btn btn-primary">
+            <button id="btn-submit-workflow-transition" type="submit" disabled={transitionMutation.isPending} className="btn btn-primary">
               {transitionMutation.isPending ? 'Executing...' : 'Advance Transition'}
             </button>
           </div>
@@ -2054,6 +2461,20 @@ export const ApplicationDetails: React.FC = () => {
           />
         )}
       </Modal>
+
+      {/* Comprehensive Side-by-Side Document, OCR & SAGE AI Inspector Modal */}
+      <DocumentVerificationInspectorModal
+        isOpen={!!inspectingDoc}
+        onClose={() => setInspectingDoc(null)}
+        document={inspectingDoc}
+        onReprocessOcr={(docId) => reprocessOcrMutation.mutate(docId)}
+        isReprocessingOcr={reprocessOcrMutation.isPending}
+        canVerify={isAdmin || hasRole('ROLE_SCRUTINY_OFFICER') || hasRole('ROLE_REGIONAL_OFFICER')}
+        onVerifyDocument={(docId, status, notes) => {
+          reviewDocMutation.mutate({ docId, status, notes })
+        }}
+        isVerifying={reviewDocMutation.isPending}
+      />
     </div>
   )
 }

@@ -16,6 +16,6 @@ describe('Phase 3 Application Statuses in StatusBadge', () => {
 
   it('renders APPROVED correctly', () => {
     render(<StatusBadge status="APPROVED" />)
-    expect(screen.getByText('Active')).toBeInTheDocument()
+    expect(screen.getByText('Approved')).toBeInTheDocument()
   })
 })

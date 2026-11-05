@@ -9,11 +9,30 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   let label = status
 
   switch (status.toUpperCase()) {
-    case 'ACTIVE':
-    case 'UP':
     case 'APPROVED':
       badgeClass = 'badge-success'
+      label = 'Approved'
+      break
+    case 'ACTIVE':
+    case 'UP':
+      badgeClass = 'badge-success'
       label = status === 'UP' ? 'Operational' : 'Active'
+      break
+    case 'SCRUTINY_PASSED':
+      badgeClass = 'badge-success'
+      label = 'Scrutiny Passed'
+      break
+    case 'SUBMITTED':
+      badgeClass = 'badge-primary'
+      label = 'Submitted'
+      break
+    case 'UNDER_SCRUTINY':
+      badgeClass = 'badge-info'
+      label = 'Under Scrutiny'
+      break
+    case 'RESUBMITTED':
+      badgeClass = 'badge-primary'
+      label = 'Resubmitted'
       break
     case 'PENDING':
     case 'PENDING_APPROVAL':
@@ -23,15 +42,28 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       label = status.toUpperCase() === 'PENDING' ? 'Pending' : 'Pending Review'
       break
     case 'DEFICIENT':
-    case 'DOWN':
+      badgeClass = 'badge-danger'
+      label = 'Deficient'
+      break
     case 'REJECTED':
+      badgeClass = 'badge-danger'
+      label = 'Rejected'
+      break
+    case 'WITHDRAWN':
+      badgeClass = 'badge-secondary'
+      label = 'Withdrawn'
+      break
+    case 'DOWN':
+      badgeClass = 'badge-danger'
+      label = 'Offline'
+      break
     case 'SUSPENDED':
+      badgeClass = 'badge-danger'
+      label = 'Suspended'
+      break
     case 'INACTIVE':
       badgeClass = 'badge-danger'
-      if (status === 'DOWN') label = 'Offline'
-      else if (status === 'SUSPENDED') label = 'Suspended'
-      else if (status === 'INACTIVE') label = 'Inactive'
-      else label = 'Deficient'
+      label = 'Inactive'
       break
     case 'DEGRADED':
       badgeClass = 'badge-warning'
@@ -39,6 +71,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       break
     default:
       badgeClass = 'badge-info'
+      label = status.replace(/_/g, ' ')
   }
 
   return (

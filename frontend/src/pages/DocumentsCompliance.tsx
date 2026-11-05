@@ -6,6 +6,7 @@ import { useMessage } from '../context/MessageContext'
 import { Modal } from '../components/common/Modal'
 import { SageAiFindingsViewer } from '../components/common/SageAiFindingsViewer'
 import { SageAiPreUploadModal } from '../components/common/SageAiPreUploadModal'
+import { DocumentVerificationInspectorModal } from '../components/common/DocumentVerificationInspectorModal'
 import {
   FileText,
   Search,
@@ -28,6 +29,7 @@ export const DocumentsCompliance: React.FC = () => {
   const { user, hasRole, isAdmin } = useAuth()
   const { showSuccess, handleApiError } = useMessage()
   const institutionId = user?.institutions?.[0]
+  const [inspectingDoc, setInspectingDoc] = useState<DocumentDto | null>(null)
   const isOfficer = isAdmin || hasRole('ROLE_REGIONAL_OFFICER') || hasRole('ROLE_COMPLIANCE_OFFICER') || hasRole('ROLE_SCRUTINY_OFFICER')
   const isInstitution = hasRole('ROLE_INSTITUTION_OFFICER') && !isAdmin
 
@@ -222,6 +224,24 @@ export const DocumentsCompliance: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['document-compliance-summary'] })
       setIsReviewModalOpen(false)
       showSuccess('Review Recorded', 'Document verification decision has been authoritatively recorded.')
+    },
+    onError: (err: unknown) => {
+      handleApiError(err, 'Review Notice', 'Failed to update review')
+    },
+  })
+
+  const inspectorReviewMutation = useMutation({
+    mutationFn: async ({ docId, status, notes }: { docId: string; status: 'VERIFIED' | 'REJECTED'; notes: string }) =>
+      documentComplianceApi.reviewDocument(docId, {
+        verificationStatus: status,
+        complianceStatus: status === 'VERIFIED' ? 'COMPLIANT' : 'DEFICIENT',
+        officerComments: notes,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document-registry'] })
+      queryClient.invalidateQueries({ queryKey: ['document-compliance-summary'] })
+      showSuccess('Review Recorded', 'Document verification decision has been authoritatively recorded.')
+      setInspectingDoc(null)
     },
     onError: (err: unknown) => {
       handleApiError(err, 'Review Notice', 'Failed to update review')
@@ -753,6 +773,15 @@ export const DocumentsCompliance: React.FC = () => {
 
                   {/* Actions Bar */}
                   <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => setInspectingDoc(docDetail.document)}
+                      className="btn btn-primary btn-sm"
+                      style={{ backgroundColor: '#1e3a8a', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                      id="btn-inspect-document-dual-pane"
+                      title="Inspect actual document along with OCR & AI findings side-by-side"
+                    >
+                      <Eye size={14} /> Side-by-Side Document &amp; AI Inspector
+                    </button>
                     {isInstitution && (
                       <button
                         onClick={() => setIsReplaceModalOpen(true)}
@@ -1357,6 +1386,18 @@ export const DocumentsCompliance: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Comprehensive Side-by-Side Document, OCR & SAGE AI Inspector Modal */}
+      <DocumentVerificationInspectorModal
+        isOpen={!!inspectingDoc}
+        onClose={() => setInspectingDoc(null)}
+        document={inspectingDoc}
+        canVerify={isOfficer}
+        onVerifyDocument={(docId, status, notes) => {
+          inspectorReviewMutation.mutate({ docId, status, notes })
+        }}
+        isVerifying={inspectorReviewMutation.isPending}
+      />
     </div>
   )
 }
